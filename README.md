@@ -2,9 +2,12 @@
 
 A powerful analytics dashboard for Zoezi group training classes. Analyze attendance rates, class performance, instructor metrics, and trends across your gym network.
 
+**Powered by StrongSales**
+
 ## Features
 
 - **Multi-Gym Support** - Select from all configured gyms in your Supabase database
+- **Iframe Widget Mode** - Embed analytics directly into Zoezi admin dashboards
 - **Flexible Date Ranges** - Quick presets (7, 30, 90 days) or custom date selection
 - **Rich Analytics Dashboard**:
   - Overall attendance rate and summary statistics
@@ -16,17 +19,68 @@ A powerful analytics dashboard for Zoezi group training classes. Analyze attenda
   - Class distribution breakdown
 - **Data Export** - Export analytics to CSV for further analysis
 - **Interactive Charts** - Powered by Chart.js with hover tooltips
+- **Modern UI** - Tailwind CSS with StrongSales purple branding (#AFACFB)
 
-## Screenshots
+## Iframe Widget Integration
 
-The dashboard displays:
-- Summary cards showing overall attendance rate, total classes, avg per class, fully booked %, and empty classes
-- Line chart showing attendance trend over the selected period
-- Horizontal bar chart ranking class types by performance
-- Bar charts for day-of-week and hourly analysis
-- Doughnut chart showing class distribution
-- Performance table with detailed metrics per class type
-- Instructor cards showing individual performance
+### Embedding for a Specific Gym (e.g., Fysiken)
+
+To embed the analytics dashboard for a specific gym so they can only see their own data:
+
+```html
+<iframe
+  src="https://YOUR-REPLIT-URL.repl.co/?clubId=FYSIKEN_CLUB_ID"
+  width="100%"
+  height="800"
+  frameborder="0"
+  style="border: none; border-radius: 12px;"
+></iframe>
+```
+
+### URL Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `clubId` | Lock the dashboard to a specific gym (hides gym selector) | `?clubId=123` |
+| `hideHeader` | Hide the StrongSales header and footer | `?hideHeader=true` |
+| `embed` | Enable iframe mode styling | `?embed=true` |
+
+### Examples
+
+**Fysiken Dashboard (locked to their gym, clean embed):**
+```
+https://YOUR-URL.repl.co/?clubId=123&hideHeader=true
+```
+
+**Full dashboard with header:**
+```
+https://YOUR-URL.repl.co/?clubId=123
+```
+
+**Admin view (all gyms visible):**
+```
+https://YOUR-URL.repl.co/
+```
+
+### How to Find a Gym's Club ID
+
+The `clubId` is the `Club_Zoezi_ID` from your Supabase `Clubs` table. You can find it by:
+
+1. Opening your Supabase dashboard
+2. Going to the `Clubs` table
+3. Finding the gym (e.g., "Fysiken")
+4. Copying the `Club_Zoezi_ID` value
+
+### Zoezi Integration
+
+When adding to a Zoezi page builder:
+
+1. Add a "Custom HTML" or "Iframe" component
+2. Set the source URL to: `https://YOUR-URL.repl.co/?clubId=THEIR_CLUB_ID&hideHeader=true`
+3. Set appropriate height (recommended: 800-1200px)
+4. The dashboard will auto-load with the gym's data
+
+**Note:** Each gym gets their own URL with their specific `clubId`. They cannot access other gyms' data because the gym selector is hidden and the club ID is locked in the URL.
 
 ## Quick Start
 
@@ -72,7 +126,7 @@ This app expects a `Clubs` table in Supabase with the following columns:
 | Column | Description |
 |--------|-------------|
 | `Club_Zoezi_ID` | The Zoezi club ID |
-| `Club_Name` | Display name for the gym |
+| `Club_name` | Display name for the gym |
 | `Zoezi_Domain` | The Zoezi domain (e.g., `fysiken.zoezi.se`) |
 | `Zoezi_Api_Key` | API key for authentication |
 
@@ -106,7 +160,7 @@ Shows each instructor's:
 ## Tech Stack
 
 - **Backend**: Node.js + Express
-- **Frontend**: Vanilla JS + Chart.js
+- **Frontend**: Tailwind CSS + Chart.js
 - **Database**: Supabase (PostgreSQL)
 - **External API**: Zoezi gym management platform
 

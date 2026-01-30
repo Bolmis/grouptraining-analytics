@@ -3,566 +3,235 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Group Training Analytics</title>
+  <title>Group Training Analytics | StrongSales</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --gray-50: #f9fafb;
-      --gray-100: #f3f4f6;
-      --gray-200: #e5e7eb;
-      --gray-300: #d1d5db;
-      --gray-500: #6b7280;
-      --gray-700: #374151;
-      --gray-900: #111827;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--gray-100);
-      color: var(--gray-900);
-      min-height: 100vh;
-    }
-
-    /* Header */
-    .header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white;
-      padding: 2rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .header h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .header p {
-      opacity: 0.9;
-      font-size: 0.95rem;
-    }
-
-    /* Controls */
-    .controls {
-      background: white;
-      padding: 1.5rem 2rem;
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-      align-items: flex-end;
-      border-bottom: 1px solid var(--gray-200);
-    }
-
-    .control-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .control-group label {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--gray-700);
-    }
-
-    select, input[type="date"] {
-      padding: 0.625rem 1rem;
-      border: 1px solid var(--gray-300);
-      border-radius: 0.5rem;
-      font-size: 0.95rem;
-      background: white;
-      min-width: 180px;
-      cursor: pointer;
-    }
-
-    select:focus, input:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-
-    .btn {
-      padding: 0.625rem 1.5rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 0.95rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--primary-dark);
-    }
-
-    .btn-primary:disabled {
-      background: var(--gray-300);
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
-      background: var(--gray-100);
-      color: var(--gray-700);
-      border: 1px solid var(--gray-300);
-    }
-
-    .btn-secondary:hover {
-      background: var(--gray-200);
-    }
-
-    /* Main content */
-    .main {
-      padding: 2rem;
-      max-width: 1600px;
-      margin: 0 auto;
-    }
-
-    /* Loading state */
-    .loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 4rem;
-      color: var(--gray-500);
-    }
-
-    .spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid var(--gray-200);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 1rem;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Empty state */
-    .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      color: var(--gray-500);
-    }
-
-    .empty-state svg {
-      width: 80px;
-      height: 80px;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-
-    /* Summary cards */
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .summary-card {
-      background: white;
-      border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .summary-card .label {
-      font-size: 0.875rem;
-      color: var(--gray-500);
-      margin-bottom: 0.5rem;
-    }
-
-    .summary-card .value {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--gray-900);
-    }
-
-    .summary-card .subvalue {
-      font-size: 0.875rem;
-      color: var(--gray-500);
-      margin-top: 0.25rem;
-    }
-
-    .summary-card.highlight {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white;
-    }
-
-    .summary-card.highlight .label,
-    .summary-card.highlight .subvalue {
-      color: rgba(255, 255, 255, 0.8);
-    }
-
-    .summary-card.highlight .value {
-      color: white;
-    }
-
-    /* Charts grid */
-    .charts-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    @media (max-width: 1200px) {
-      .charts-grid {
-        grid-template-columns: 1fr;
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            strongsales: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#AFACFB',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          }
+        }
       }
     }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    .chart-card {
-      background: white;
-      border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    .chart-card.full-width {
-      grid-column: 1 / -1;
+    .gradient-bg {
+      background: linear-gradient(135deg, #AFACFB 0%, #8b5cf6 50%, #6d28d9 100%);
     }
 
-    .chart-card h3 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--gray-900);
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .glass {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
     }
 
-    .chart-container {
-      position: relative;
-      height: 300px;
+    .card-shadow {
+      box-shadow: 0 4px 6px -1px rgba(175, 172, 251, 0.1), 0 2px 4px -2px rgba(175, 172, 251, 0.1);
     }
 
-    .chart-container.tall {
-      height: 400px;
+    .card-shadow-lg {
+      box-shadow: 0 10px 15px -3px rgba(175, 172, 251, 0.15), 0 4px 6px -4px rgba(175, 172, 251, 0.1);
     }
 
-    /* Tables */
-    .table-card {
-      background: white;
-      border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      margin-bottom: 1.5rem;
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
     }
 
-    .table-card h3 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--gray-900);
-      margin-bottom: 1rem;
+    .animate-pulse-soft {
+      animation: pulse-soft 2s ease-in-out infinite;
     }
 
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
+    /* Hide scrollbar for cleaner iframe look */
+    .iframe-mode::-webkit-scrollbar {
+      width: 6px;
     }
-
-    .data-table th {
-      text-align: left;
-      padding: 0.75rem 1rem;
-      background: var(--gray-50);
-      border-bottom: 2px solid var(--gray-200);
-      font-weight: 600;
-      font-size: 0.875rem;
-      color: var(--gray-700);
-    }
-
-    .data-table td {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--gray-100);
-      font-size: 0.95rem;
-    }
-
-    .data-table tr:hover {
-      background: var(--gray-50);
-    }
-
-    /* Progress bars */
-    .progress-bar {
-      height: 8px;
-      background: var(--gray-200);
-      border-radius: 4px;
-      overflow: hidden;
-      width: 120px;
-    }
-
-    .progress-bar .fill {
-      height: 100%;
-      border-radius: 4px;
-      transition: width 0.3s ease;
-    }
-
-    .progress-bar .fill.excellent { background: var(--success); }
-    .progress-bar .fill.good { background: #22c55e; }
-    .progress-bar .fill.average { background: var(--warning); }
-    .progress-bar .fill.low { background: var(--danger); }
-
-    /* Rate badges */
-    .rate-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 500;
-    }
-
-    /* Color dot */
-    .color-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-      background: var(--gray-100);
-      padding: 0.25rem;
-      border-radius: 0.5rem;
-      width: fit-content;
-    }
-
-    .tab {
-      padding: 0.5rem 1rem;
-      border: none;
+    .iframe-mode::-webkit-scrollbar-track {
       background: transparent;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--gray-500);
-      cursor: pointer;
-      border-radius: 0.375rem;
-      transition: all 0.2s;
+    }
+    .iframe-mode::-webkit-scrollbar-thumb {
+      background: #AFACFB;
+      border-radius: 3px;
     }
 
-    .tab.active {
-      background: white;
-      color: var(--gray-900);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    }
-
-    .tab:hover:not(.active) {
-      color: var(--gray-700);
-    }
-
-    /* Quick stats inline */
-    .quick-stats {
-      display: flex;
-      gap: 2rem;
-      margin-top: 0.5rem;
-    }
-
-    .quick-stat {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.875rem;
-    }
-
-    .quick-stat .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    /* Heatmap */
-    .heatmap {
-      display: grid;
-      grid-template-columns: auto repeat(18, 1fr);
-      gap: 2px;
-      font-size: 0.75rem;
-    }
-
-    .heatmap-cell {
-      aspect-ratio: 1;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 500;
-      min-width: 32px;
-    }
-
-    .heatmap-header {
-      background: transparent;
-      color: var(--gray-500);
-      font-size: 0.7rem;
-    }
-
-    .heatmap-label {
-      padding-right: 0.5rem;
-      text-align: right;
-      color: var(--gray-500);
-      font-size: 0.7rem;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-    }
-
-    /* Instructor list */
-    .instructor-card {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem;
-      background: var(--gray-50);
-      border-radius: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .instructor-avatar {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 1.1rem;
-    }
-
-    .instructor-info {
-      flex: 1;
-    }
-
-    .instructor-name {
-      font-weight: 600;
-      color: var(--gray-900);
-    }
-
-    .instructor-stats {
-      font-size: 0.875rem;
-      color: var(--gray-500);
-    }
-
-    .instructor-rate {
-      text-align: right;
-    }
-
-    .instructor-rate .value {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--gray-900);
-    }
-
-    .instructor-rate .label {
-      font-size: 0.75rem;
-      color: var(--gray-500);
-    }
-
-    /* Export button */
-    .export-section {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
+    /* Progress bar styles */
+    .progress-excellent { background: linear-gradient(90deg, #10b981, #34d399); }
+    .progress-good { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .progress-average { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .progress-low { background: linear-gradient(90deg, #ef4444, #f87171); }
   </style>
 </head>
-<body>
-  <header class="header">
-    <h1>Group Training Analytics</h1>
-    <p>Analyze class performance, attendance rates, and trends</p>
-  </header>
+<body class="bg-gray-50 min-h-screen">
 
-  <div class="controls">
-    <div class="control-group">
-      <label for="gym-select">Select Gym</label>
-      <select id="gym-select">
-        <option value="">Loading gyms...</option>
-      </select>
-    </div>
+  <!-- Header - Hidden in iframe mode -->
+  <header id="header" class="gradient-bg text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex items-center justify-between">
+        <!-- StrongSales Logo -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight">StrongSales</h1>
+            <p class="text-xs text-white/70 font-medium">Group Training Analytics</p>
+          </div>
+        </div>
 
-    <div class="control-group">
-      <label for="from-date">From Date</label>
-      <input type="date" id="from-date">
-    </div>
-
-    <div class="control-group">
-      <label for="to-date">To Date</label>
-      <input type="date" id="to-date">
-    </div>
-
-    <div class="control-group">
-      <label>&nbsp;</label>
-      <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-secondary" onclick="setPreset('week')">Last 7 Days</button>
-        <button class="btn btn-secondary" onclick="setPreset('month')">Last 30 Days</button>
-        <button class="btn btn-secondary" onclick="setPreset('quarter')">Last 90 Days</button>
+        <!-- Powered by badge -->
+        <div class="hidden sm:flex items-center space-x-2 text-sm text-white/60">
+          <span>Powered by</span>
+          <span class="font-semibold text-white/90">Zoezi</span>
+        </div>
       </div>
     </div>
+  </header>
 
-    <div class="control-group" style="margin-left: auto;">
-      <label>&nbsp;</label>
-      <button class="btn btn-primary" id="load-btn" onclick="loadAnalytics()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          <path d="M9 12l2 2 4-4"/>
-        </svg>
-        Load Analytics
-      </button>
+  <!-- Controls Bar -->
+  <div id="controls-bar" class="bg-white border-b border-gray-100 sticky top-0 z-40 card-shadow">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex flex-wrap items-end gap-4">
+
+        <!-- Gym Selector - Hidden in iframe mode with clubId -->
+        <div id="gym-selector-container" class="flex-1 min-w-[200px]">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Gym</label>
+          <select id="gym-select" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-strongsales-300 focus:border-strongsales-300 transition-all">
+            <option value="">Loading gyms...</option>
+          </select>
+        </div>
+
+        <!-- Date Range -->
+        <div class="flex items-end gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">From</label>
+            <input type="date" id="from-date" class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-strongsales-300 focus:border-strongsales-300 transition-all">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">To</label>
+            <input type="date" id="to-date" class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:ring-2 focus:ring-strongsales-300 focus:border-strongsales-300 transition-all">
+          </div>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="flex items-end gap-2">
+          <button onclick="setPreset('week')" class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all">
+            7 Days
+          </button>
+          <button onclick="setPreset('month')" class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all">
+            30 Days
+          </button>
+          <button onclick="setPreset('quarter')" class="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all">
+            90 Days
+          </button>
+        </div>
+
+        <!-- Load Button -->
+        <button id="load-btn" onclick="loadAnalytics()" class="px-6 py-2.5 bg-gradient-to-r from-strongsales-300 to-strongsales-500 hover:from-strongsales-400 hover:to-strongsales-600 text-white font-semibold rounded-xl shadow-lg shadow-strongsales-300/30 transition-all flex items-center gap-2">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span>Load Analytics</span>
+        </button>
+      </div>
     </div>
   </div>
 
-  <main class="main">
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div id="content">
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M3 3v18h18"/>
-          <path d="M18 17V9"/>
-          <path d="M13 17V5"/>
-          <path d="M8 17v-3"/>
-        </svg>
-        <h2>Select a gym and date range</h2>
-        <p>Choose a gym and time period to view attendance analytics</p>
+      <!-- Empty State -->
+      <div class="flex flex-col items-center justify-center py-20 text-center">
+        <div class="w-20 h-20 bg-strongsales-100 rounded-2xl flex items-center justify-center mb-6">
+          <svg class="w-10 h-10 text-strongsales-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 3v18h18"/>
+            <path d="M18 17V9"/>
+            <path d="M13 17V5"/>
+            <path d="M8 17v-3"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Select a gym and date range</h2>
+        <p class="text-gray-500 max-w-md">Choose a gym and time period to view attendance analytics and performance metrics.</p>
       </div>
     </div>
   </main>
 
+  <!-- Footer - Minimal in iframe mode -->
+  <footer id="footer" class="border-t border-gray-100 bg-white mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex items-center justify-between text-sm text-gray-500">
+        <span>StrongSales Analytics</span>
+        <span>Powered by Zoezi</span>
+      </div>
+    </div>
+  </footer>
+
   <script>
-    // State
+    // ==========================================================================
+    // STATE & CONFIG
+    // ==========================================================================
     let analytics = null;
     let charts = {};
+    let config = {
+      isIframeMode: false,
+      presetClubId: null,
+      hideHeader: false,
+      hideGymSelector: false
+    };
 
-    // Initialize
+    // ==========================================================================
+    // INITIALIZATION
+    // ==========================================================================
     document.addEventListener('DOMContentLoaded', () => {
+      // Parse URL parameters
+      const params = new URLSearchParams(window.location.search);
+      config.presetClubId = params.get('clubId');
+      config.isIframeMode = params.get('embed') === 'true' || config.presetClubId !== null;
+      config.hideHeader = params.get('hideHeader') === 'true';
+      config.hideGymSelector = config.presetClubId !== null;
+
+      // Apply iframe mode styling
+      if (config.isIframeMode) {
+        document.body.classList.add('iframe-mode');
+      }
+
+      if (config.hideHeader) {
+        document.getElementById('header').style.display = 'none';
+        document.getElementById('footer').style.display = 'none';
+      }
+
+      if (config.hideGymSelector) {
+        document.getElementById('gym-selector-container').style.display = 'none';
+      }
+
+      // Load gyms and set defaults
       loadGyms();
       setPreset('month');
     });
 
-    // Load gyms from API
+    // ==========================================================================
+    // API FUNCTIONS
+    // ==========================================================================
     async function loadGyms() {
       const select = document.getElementById('gym-select');
       try {
@@ -573,47 +242,54 @@
 
         select.innerHTML = '<option value="">Select a gym...</option>' +
           gyms.map(g => `<option value="${g.Club_Zoezi_ID}">${g.Club_name}</option>`).join('');
+
+        // If preset club ID, select it and auto-load
+        if (config.presetClubId) {
+          select.value = config.presetClubId;
+          // Auto-load after a short delay
+          setTimeout(() => loadAnalytics(), 500);
+        }
       } catch (error) {
         console.error('Error loading gyms:', error);
         select.innerHTML = '<option value="">Error loading gyms</option>';
       }
     }
 
-    // Set date preset
     function setPreset(preset) {
       const today = new Date();
       const toDate = today.toISOString().split('T')[0];
       let fromDate;
 
+      const tempDate = new Date();
       switch (preset) {
         case 'week':
-          fromDate = new Date(today.setDate(today.getDate() - 7)).toISOString().split('T')[0];
+          tempDate.setDate(tempDate.getDate() - 7);
           break;
         case 'month':
-          fromDate = new Date(today.setDate(today.getDate() - 30)).toISOString().split('T')[0];
+          tempDate.setDate(tempDate.getDate() - 30);
           break;
         case 'quarter':
-          fromDate = new Date(today.setDate(today.getDate() - 90)).toISOString().split('T')[0];
+          tempDate.setDate(tempDate.getDate() - 90);
           break;
       }
+      fromDate = tempDate.toISOString().split('T')[0];
 
       document.getElementById('from-date').value = fromDate;
-      document.getElementById('to-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('to-date').value = toDate;
     }
 
-    // Load analytics
     async function loadAnalytics() {
-      const clubId = document.getElementById('gym-select').value;
+      const clubId = config.presetClubId || document.getElementById('gym-select').value;
       const fromDate = document.getElementById('from-date').value;
       const toDate = document.getElementById('to-date').value;
 
       if (!clubId) {
-        alert('Please select a gym');
+        showError('Please select a gym');
         return;
       }
 
       if (!fromDate || !toDate) {
-        alert('Please select a date range');
+        showError('Please select a date range');
         return;
       }
 
@@ -621,12 +297,18 @@
       const content = document.getElementById('content');
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;margin:0;"></span> Loading...';
+      btn.innerHTML = `
+        <svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Loading...</span>
+      `;
 
       content.innerHTML = `
-        <div class="loading">
-          <div class="spinner"></div>
-          <p>Loading analytics data...</p>
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="w-16 h-16 border-4 border-strongsales-200 border-t-strongsales-500 rounded-full animate-spin mb-4"></div>
+          <p class="text-gray-500 font-medium">Loading analytics data...</p>
         </div>
       `;
 
@@ -640,32 +322,48 @@
       } catch (error) {
         console.error('Error loading analytics:', error);
         content.innerHTML = `
-          <div class="empty-state">
-            <h2>Error loading data</h2>
-            <p>${error.message}</p>
+          <div class="flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mb-4">
+              <svg class="w-8 h-8 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v4m0 4h.01"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Error loading data</h3>
+            <p class="text-gray-500">${error.message}</p>
           </div>
         `;
       } finally {
         btn.disabled = false;
         btn.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            <path d="M9 12l2 2 4-4"/>
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
           </svg>
-          Load Analytics
+          <span>Load Analytics</span>
         `;
       }
     }
 
-    // Render dashboard
+    function showError(message) {
+      alert(message);
+    }
+
+    // ==========================================================================
+    // RENDER DASHBOARD
+    // ==========================================================================
     function renderDashboard() {
       const content = document.getElementById('content');
       const { summary, byType, byDay, byHour, byInstructor, dailyTrend, club, dateRange } = analytics;
 
       content.innerHTML = `
-        <div class="export-section">
-          <button class="btn btn-secondary" onclick="exportCSV()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Club Info & Export -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">${club.name}</h2>
+            <p class="text-gray-500">${dateRange.fromDate} to ${dateRange.toDate}</p>
+          </div>
+          <button onclick="exportCSV()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all flex items-center gap-2 card-shadow">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
               <line x1="12" y1="15" x2="12" y2="3"/>
@@ -675,183 +373,193 @@
         </div>
 
         <!-- Summary Cards -->
-        <div class="summary-grid">
-          <div class="summary-card highlight">
-            <div class="label">Overall Attendance Rate</div>
-            <div class="value">${summary.overallAttendanceRate}%</div>
-            <div class="subvalue">${summary.totalBooked} / ${summary.totalCapacity} spots filled</div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <!-- Main KPI -->
+          <div class="col-span-2 md:col-span-1 gradient-bg rounded-2xl p-6 text-white card-shadow-lg">
+            <p class="text-white/80 text-sm font-medium mb-1">Attendance Rate</p>
+            <p class="text-4xl font-bold">${summary.overallAttendanceRate}%</p>
+            <p class="text-white/60 text-sm mt-1">${summary.totalBooked} / ${summary.totalCapacity} spots</p>
           </div>
-          <div class="summary-card">
-            <div class="label">Total Classes</div>
-            <div class="value">${summary.totalClasses}</div>
-            <div class="subvalue">${byType.length} different class types</div>
+
+          <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm font-medium mb-1">Total Classes</p>
+            <p class="text-3xl font-bold text-gray-900">${summary.totalClasses}</p>
+            <p class="text-gray-400 text-sm">${byType.length} types</p>
           </div>
-          <div class="summary-card">
-            <div class="label">Avg. per Class</div>
-            <div class="value">${summary.avgPerClass}</div>
-            <div class="subvalue">participants</div>
+
+          <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm font-medium mb-1">Avg per Class</p>
+            <p class="text-3xl font-bold text-gray-900">${summary.avgPerClass}</p>
+            <p class="text-gray-400 text-sm">participants</p>
           </div>
-          <div class="summary-card">
-            <div class="label">Fully Booked</div>
-            <div class="value">${summary.fullyBookedClasses}</div>
-            <div class="subvalue">${summary.fullyBookedRate}% of classes</div>
+
+          <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm font-medium mb-1">Fully Booked</p>
+            <p class="text-3xl font-bold text-emerald-600">${summary.fullyBookedClasses}</p>
+            <p class="text-gray-400 text-sm">${summary.fullyBookedRate}% of classes</p>
           </div>
-          <div class="summary-card">
-            <div class="label">Empty Classes</div>
-            <div class="value">${summary.emptyClasses}</div>
-            <div class="subvalue">${summary.emptyRate}% of classes</div>
+
+          <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm font-medium mb-1">Empty Classes</p>
+            <p class="text-3xl font-bold text-red-500">${summary.emptyClasses}</p>
+            <p class="text-gray-400 text-sm">${summary.emptyRate}% of classes</p>
           </div>
         </div>
 
-        <!-- Charts -->
-        <div class="charts-grid">
-          <div class="chart-card full-width">
-            <h3>Attendance Trend Over Time</h3>
-            <div class="chart-container tall">
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <!-- Trend Chart - Full Width -->
+          <div class="lg:col-span-2 bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Attendance Trend</h3>
+            <div class="h-80">
               <canvas id="trend-chart"></canvas>
             </div>
           </div>
 
-          <div class="chart-card">
-            <h3>Attendance by Class Type</h3>
-            <div class="chart-container">
+          <!-- Class Type Performance -->
+          <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">By Class Type</h3>
+            <div class="h-72">
               <canvas id="type-chart"></canvas>
             </div>
           </div>
 
-          <div class="chart-card">
-            <h3>Attendance by Day of Week</h3>
-            <div class="chart-container">
+          <!-- Day of Week -->
+          <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">By Day of Week</h3>
+            <div class="h-72">
               <canvas id="day-chart"></canvas>
             </div>
           </div>
 
-          <div class="chart-card">
-            <h3>Attendance by Hour</h3>
-            <div class="chart-container">
+          <!-- Hourly -->
+          <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">By Hour</h3>
+            <div class="h-72">
               <canvas id="hour-chart"></canvas>
             </div>
           </div>
 
-          <div class="chart-card">
-            <h3>Class Distribution</h3>
-            <div class="chart-container">
+          <!-- Distribution -->
+          <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Class Distribution</h3>
+            <div class="h-72">
               <canvas id="distribution-chart"></canvas>
             </div>
           </div>
         </div>
 
         <!-- Class Performance Table -->
-        <div class="table-card">
-          <h3>Class Performance Ranking</h3>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Class Type</th>
-                <th>Classes</th>
-                <th>Total Bookings</th>
-                <th>Avg. per Class</th>
-                <th>Attendance Rate</th>
-                <th>Performance</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${byType.map((t, i) => `
-                <tr>
-                  <td><strong>#${i + 1}</strong></td>
-                  <td>
-                    <span class="rate-badge">
-                      <span class="color-dot" style="background: ${t.color}"></span>
-                      ${t.name}
-                    </span>
-                  </td>
-                  <td>${t.classes}</td>
-                  <td>${t.totalBooked}</td>
-                  <td>${t.avgAttendance}</td>
-                  <td><strong>${t.attendanceRate}%</strong></td>
-                  <td>
-                    <div class="progress-bar">
-                      <div class="fill ${getRateClass(t.attendanceRate)}" style="width: ${Math.min(t.attendanceRate, 100)}%"></div>
-                    </div>
-                  </td>
+        <div class="bg-white rounded-2xl p-6 card-shadow mb-8">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Class Performance Ranking</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="text-left text-sm font-medium text-gray-500 border-b border-gray-100">
+                  <th class="pb-3 pr-4">#</th>
+                  <th class="pb-3 pr-4">Class Type</th>
+                  <th class="pb-3 pr-4 text-center">Classes</th>
+                  <th class="pb-3 pr-4 text-center">Bookings</th>
+                  <th class="pb-3 pr-4 text-center">Avg</th>
+                  <th class="pb-3 pr-4 text-right">Rate</th>
+                  <th class="pb-3 w-32">Performance</th>
                 </tr>
-              `).join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                ${byType.map((t, i) => `
+                  <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="py-3 pr-4 font-semibold text-gray-400">${i + 1}</td>
+                    <td class="py-3 pr-4">
+                      <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full" style="background: ${t.color}"></div>
+                        <span class="font-medium text-gray-900">${t.name}</span>
+                      </div>
+                    </td>
+                    <td class="py-3 pr-4 text-center text-gray-600">${t.classes}</td>
+                    <td class="py-3 pr-4 text-center text-gray-600">${t.totalBooked}</td>
+                    <td class="py-3 pr-4 text-center text-gray-600">${t.avgAttendance}</td>
+                    <td class="py-3 pr-4 text-right font-semibold text-gray-900">${t.attendanceRate}%</td>
+                    <td class="py-3">
+                      <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full ${getProgressClass(t.attendanceRate)}" style="width: ${Math.min(t.attendanceRate, 100)}%"></div>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Instructor Performance -->
         ${byInstructor.length > 0 ? `
-          <div class="table-card">
-            <h3>Instructor Performance</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem;">
-              ${byInstructor.slice(0, 12).map((inst, i) => `
-                <div class="instructor-card">
-                  <div class="instructor-avatar">${inst.name.charAt(0)}</div>
-                  <div class="instructor-info">
-                    <div class="instructor-name">${inst.name}</div>
-                    <div class="instructor-stats">${inst.classes} classes | ${inst.totalBooked} total bookings</div>
+          <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Instructor Performance</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              ${byInstructor.slice(0, 12).map((inst) => `
+                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                  <div class="w-12 h-12 gradient-bg rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    ${inst.name.charAt(0)}
                   </div>
-                  <div class="instructor-rate">
-                    <div class="value">${inst.attendanceRate}%</div>
-                    <div class="label">attendance</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-gray-900 truncate">${inst.name}</p>
+                    <p class="text-sm text-gray-500">${inst.classes} classes · ${inst.totalBooked} bookings</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xl font-bold text-gray-900">${inst.attendanceRate}%</p>
                   </div>
                 </div>
               `).join('')}
             </div>
           </div>
         ` : ''}
-
-        <!-- Heatmap -->
-        <div class="chart-card">
-          <h3>Weekly Heatmap (Avg. Attendance Rate by Day & Hour)</h3>
-          <div id="heatmap"></div>
-        </div>
       `;
 
       // Render charts
-      renderTrendChart();
-      renderTypeChart();
-      renderDayChart();
-      renderHourChart();
-      renderDistributionChart();
-      renderHeatmap();
+      renderCharts();
     }
 
-    // Get rate class for styling
-    function getRateClass(rate) {
-      if (rate >= 80) return 'excellent';
-      if (rate >= 60) return 'good';
-      if (rate >= 40) return 'average';
-      return 'low';
+    function getProgressClass(rate) {
+      if (rate >= 80) return 'progress-excellent';
+      if (rate >= 60) return 'progress-good';
+      if (rate >= 40) return 'progress-average';
+      return 'progress-low';
     }
 
-    // Chart: Trend over time
-    function renderTrendChart() {
-      const ctx = document.getElementById('trend-chart').getContext('2d');
-      const { dailyTrend } = analytics;
+    // ==========================================================================
+    // CHARTS
+    // ==========================================================================
+    function renderCharts() {
+      // Destroy existing charts
+      Object.values(charts).forEach(c => c?.destroy());
 
-      if (charts.trend) charts.trend.destroy();
+      const chartColors = {
+        primary: '#AFACFB',
+        primaryDark: '#8b5cf6',
+        success: '#10b981',
+        gray: '#e5e7eb'
+      };
 
-      charts.trend = new Chart(ctx, {
+      // Trend Chart
+      const trendCtx = document.getElementById('trend-chart').getContext('2d');
+      charts.trend = new Chart(trendCtx, {
         type: 'line',
         data: {
-          labels: dailyTrend.map(d => d.date),
+          labels: analytics.dailyTrend.map(d => d.date),
           datasets: [
             {
               label: 'Attendance Rate (%)',
-              data: dailyTrend.map(d => d.attendanceRate),
-              borderColor: '#6366f1',
-              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              data: analytics.dailyTrend.map(d => d.attendanceRate),
+              borderColor: chartColors.primary,
+              backgroundColor: chartColors.primary + '20',
               fill: true,
               tension: 0.4,
               yAxisID: 'y'
             },
             {
               label: 'Total Bookings',
-              data: dailyTrend.map(d => d.totalBooked),
-              borderColor: '#10b981',
+              data: analytics.dailyTrend.map(d => d.totalBooked),
+              borderColor: chartColors.success,
               backgroundColor: 'transparent',
               borderDash: [5, 5],
               tension: 0.4,
@@ -862,144 +570,71 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: {
-            mode: 'index',
-            intersect: false
-          },
-          plugins: {
-            legend: {
-              position: 'top'
-            }
-          },
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { position: 'top' } },
           scales: {
-            y: {
-              type: 'linear',
-              display: true,
-              position: 'left',
-              min: 0,
-              max: 100,
-              title: {
-                display: true,
-                text: 'Attendance Rate (%)'
-              }
-            },
-            y1: {
-              type: 'linear',
-              display: true,
-              position: 'right',
-              min: 0,
-              title: {
-                display: true,
-                text: 'Total Bookings'
-              },
-              grid: {
-                drawOnChartArea: false
-              }
-            }
+            y: { type: 'linear', display: true, position: 'left', min: 0, max: 100, title: { display: true, text: 'Rate (%)' } },
+            y1: { type: 'linear', display: true, position: 'right', min: 0, title: { display: true, text: 'Bookings' }, grid: { drawOnChartArea: false } }
           }
         }
       });
-    }
 
-    // Chart: By type (horizontal bar)
-    function renderTypeChart() {
-      const ctx = document.getElementById('type-chart').getContext('2d');
-      const { byType } = analytics;
-      const top10 = byType.slice(0, 10);
-
-      if (charts.type) charts.type.destroy();
-
-      charts.type = new Chart(ctx, {
+      // Type Chart
+      const typeCtx = document.getElementById('type-chart').getContext('2d');
+      const top10 = analytics.byType.slice(0, 10);
+      charts.type = new Chart(typeCtx, {
         type: 'bar',
         data: {
           labels: top10.map(t => t.name),
           datasets: [{
             label: 'Attendance Rate (%)',
             data: top10.map(t => t.attendanceRate),
-            backgroundColor: top10.map(t => t.color || '#6366f1'),
-            borderRadius: 4
+            backgroundColor: top10.map(t => t.color || chartColors.primary),
+            borderRadius: 6
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           indexAxis: 'y',
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: {
-              min: 0,
-              max: 100,
-              title: {
-                display: true,
-                text: 'Attendance Rate (%)'
-              }
-            }
-          }
+          plugins: { legend: { display: false } },
+          scales: { x: { min: 0, max: 100 } }
         }
       });
-    }
 
-    // Chart: By day of week
-    function renderDayChart() {
-      const ctx = document.getElementById('day-chart').getContext('2d');
-      const { byDay } = analytics;
-      // Reorder to start from Monday
-      const reordered = [...byDay.slice(1), byDay[0]];
-
-      if (charts.day) charts.day.destroy();
-
-      charts.day = new Chart(ctx, {
+      // Day Chart
+      const dayCtx = document.getElementById('day-chart').getContext('2d');
+      const reorderedDays = [...analytics.byDay.slice(1), analytics.byDay[0]];
+      charts.day = new Chart(dayCtx, {
         type: 'bar',
         data: {
-          labels: reordered.map(d => d.day.slice(0, 3)),
+          labels: reorderedDays.map(d => d.day.slice(0, 3)),
           datasets: [{
             label: 'Attendance Rate (%)',
-            data: reordered.map(d => d.attendanceRate),
-            backgroundColor: reordered.map(d =>
-              parseFloat(d.attendanceRate) >= 60 ? '#10b981' :
-              parseFloat(d.attendanceRate) >= 40 ? '#f59e0b' : '#ef4444'
-            ),
-            borderRadius: 4
+            data: reorderedDays.map(d => d.attendanceRate),
+            backgroundColor: reorderedDays.map(d => parseFloat(d.attendanceRate) >= 60 ? chartColors.success : parseFloat(d.attendanceRate) >= 40 ? '#f59e0b' : '#ef4444'),
+            borderRadius: 6
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            y: {
-              min: 0,
-              max: 100,
-              title: {
-                display: true,
-                text: 'Attendance Rate (%)'
-              }
-            }
-          }
+          plugins: { legend: { display: false } },
+          scales: { y: { min: 0, max: 100 } }
         }
       });
-    }
 
-    // Chart: By hour
-    function renderHourChart() {
-      const ctx = document.getElementById('hour-chart').getContext('2d');
-      const { byHour } = analytics;
-
-      if (charts.hour) charts.hour.destroy();
-
-      charts.hour = new Chart(ctx, {
+      // Hour Chart
+      const hourCtx = document.getElementById('hour-chart').getContext('2d');
+      charts.hour = new Chart(hourCtx, {
         type: 'line',
         data: {
-          labels: byHour.map(h => h.label),
+          labels: analytics.byHour.map(h => h.label),
           datasets: [{
             label: 'Attendance Rate (%)',
-            data: byHour.map(h => h.attendanceRate),
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            data: analytics.byHour.map(h => h.attendanceRate),
+            borderColor: chartColors.primary,
+            backgroundColor: chartColors.primary + '20',
             fill: true,
             tension: 0.4
           }]
@@ -1007,93 +642,56 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            y: {
-              min: 0,
-              max: 100,
-              title: {
-                display: true,
-                text: 'Attendance Rate (%)'
-              }
-            }
-          }
+          plugins: { legend: { display: false } },
+          scales: { y: { min: 0, max: 100 } }
         }
       });
-    }
 
-    // Chart: Distribution (pie)
-    function renderDistributionChart() {
-      const ctx = document.getElementById('distribution-chart').getContext('2d');
-      const { byType } = analytics;
-      const top8 = byType.slice(0, 8);
-
-      if (charts.distribution) charts.distribution.destroy();
-
-      charts.distribution = new Chart(ctx, {
+      // Distribution Chart
+      const distCtx = document.getElementById('distribution-chart').getContext('2d');
+      const top8 = analytics.byType.slice(0, 8);
+      charts.distribution = new Chart(distCtx, {
         type: 'doughnut',
         data: {
           labels: top8.map(t => t.name),
-          datasets: [{
-            data: top8.map(t => t.classes),
-            backgroundColor: top8.map(t => t.color || '#6366f1')
-          }]
+          datasets: [{ data: top8.map(t => t.classes), backgroundColor: top8.map(t => t.color || chartColors.primary) }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right'
-            }
-          }
+          plugins: { legend: { position: 'right' } }
         }
       });
     }
 
-    // Heatmap
-    function renderHeatmap() {
-      // This would require processing raw workout data
-      // For now, show a placeholder message
-      const container = document.getElementById('heatmap');
-      container.innerHTML = `
-        <p style="color: var(--gray-500); text-align: center; padding: 2rem;">
-          Heatmap visualization requires raw schedule data processing.
-          <br>See the charts above for hourly and daily breakdowns.
-        </p>
-      `;
-    }
-
-    // Export to CSV
+    // ==========================================================================
+    // EXPORT
+    // ==========================================================================
     function exportCSV() {
       if (!analytics) return;
 
       const { byType, summary, club, dateRange } = analytics;
 
       let csv = `Group Training Analytics Report\n`;
-      csv += `Gym: ${club.name}\n`;
-      csv += `Period: ${dateRange.fromDate} to ${dateRange.toDate}\n\n`;
-
+      csv += `Gym,${club.name}\n`;
+      csv += `Period,${dateRange.fromDate} to ${dateRange.toDate}\n\n`;
       csv += `Summary\n`;
       csv += `Total Classes,${summary.totalClasses}\n`;
       csv += `Total Bookings,${summary.totalBooked}\n`;
       csv += `Total Capacity,${summary.totalCapacity}\n`;
       csv += `Overall Attendance Rate,${summary.overallAttendanceRate}%\n`;
       csv += `Avg per Class,${summary.avgPerClass}\n\n`;
-
       csv += `Class Performance\n`;
       csv += `Class Type,Classes,Total Bookings,Avg per Class,Attendance Rate\n`;
       byType.forEach(t => {
-        csv += `${t.name},${t.classes},${t.totalBooked},${t.avgAttendance},${t.attendanceRate}%\n`;
+        csv += `"${t.name}",${t.classes},${t.totalBooked},${t.avgAttendance},${t.attendanceRate}%\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `group-training-analytics-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `analytics-${club.name}-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
