@@ -21,15 +21,48 @@ A powerful analytics dashboard for Zoezi group training classes. Analyze attenda
 - **Interactive Charts** - Powered by Chart.js with hover tooltips
 - **Modern UI** - Tailwind CSS with StrongSales purple branding (#AFACFB)
 
-## Iframe Widget Integration
+## Secure Iframe Widget Integration
 
-### Embedding for a Specific Gym (e.g., Fysiken)
+The dashboard uses **cryptographically signed tokens** to securely embed analytics for specific gyms. Each gym gets a unique, unforgeable URL token that only grants access to their own data.
 
-To embed the analytics dashboard for a specific gym so they can only see their own data:
+### Security Model
+
+- Tokens are HMAC-SHA256 signed using a server-side secret
+- Tokens cannot be modified or forged - changing the club ID invalidates the signature
+- Tokens expire after 1 year (configurable)
+- Gyms cannot access other gyms' data even if they know their club ID
+
+### Step 1: Generate Embed Tokens (Admin)
+
+Use the admin API to generate secure tokens for each gym:
+
+```bash
+# Generate token for a single gym
+curl -X POST https://YOUR-URL.repl.co/api/admin/embed-token \
+  -H "Content-Type: application/json" \
+  -H "X-Admin-Key: YOUR_ADMIN_KEY" \
+  -d '{"clubId": "123"}'
+
+# Response:
+{
+  "token": "MTIz.MTcwNjY0NzA...",
+  "clubId": "123",
+  "clubName": "Fysiken",
+  "embedUrl": "https://YOUR-URL.repl.co/?token=MTIz.MTcwNjY0NzA...&hideHeader=true"
+}
+
+# Generate tokens for ALL gyms at once
+curl https://YOUR-URL.repl.co/api/admin/embed-tokens \
+  -H "X-Admin-Key: YOUR_ADMIN_KEY"
+```
+
+### Step 2: Embed in Zoezi
+
+Use the generated `embedUrl` in an iframe:
 
 ```html
 <iframe
-  src="https://YOUR-REPLIT-URL.repl.co/?clubId=FYSIKEN_CLUB_ID"
+  src="https://YOUR-URL.repl.co/?token=MTIz.MTcwNjY0NzA...&hideHeader=true"
   width="100%"
   height="800"
   frameborder="0"
@@ -41,54 +74,44 @@ To embed the analytics dashboard for a specific gym so they can only see their o
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `clubId` | Lock the dashboard to a specific gym (hides gym selector) | `?clubId=123` |
+| `token` | **Secure embed token** (required for embeds) | `?token=MTIz...` |
 | `hideHeader` | Hide the StrongSales header and footer | `?hideHeader=true` |
-| `embed` | Enable iframe mode styling | `?embed=true` |
 
-### Examples
+### Admin API Endpoints
 
-**Fysiken Dashboard (locked to their gym, clean embed):**
-```
-https://YOUR-URL.repl.co/?clubId=123&hideHeader=true
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/embed-token` | POST | Generate token for one gym (body: `{clubId}`) |
+| `/api/admin/embed-tokens` | GET | Generate tokens for all gyms |
+| `/api/verify-token` | GET | Verify a token (public, used by frontend) |
 
-**Full dashboard with header:**
-```
-https://YOUR-URL.repl.co/?clubId=123
-```
+All admin endpoints require the `X-Admin-Key` header.
 
-**Admin view (all gyms visible):**
-```
-https://YOUR-URL.repl.co/
-```
+### Example: Setting Up Fysiken
 
-### How to Find a Gym's Club ID
+1. Generate their token:
+   ```bash
+   curl -X POST https://your-app.repl.co/api/admin/embed-token \
+     -H "Content-Type: application/json" \
+     -H "X-Admin-Key: your-secret-admin-key" \
+     -d '{"clubId": "FYSIKEN_CLUB_ID"}'
+   ```
 
-The `clubId` is the `Club_Zoezi_ID` from your Supabase `Clubs` table. You can find it by:
+2. Copy the `embedUrl` from the response
 
-1. Opening your Supabase dashboard
-2. Going to the `Clubs` table
-3. Finding the gym (e.g., "Fysiken")
-4. Copying the `Club_Zoezi_ID` value
+3. Add to Zoezi page builder as an iframe with that URL
 
-### Zoezi Integration
-
-When adding to a Zoezi page builder:
-
-1. Add a "Custom HTML" or "Iframe" component
-2. Set the source URL to: `https://YOUR-URL.repl.co/?clubId=THEIR_CLUB_ID&hideHeader=true`
-3. Set appropriate height (recommended: 800-1200px)
-4. The dashboard will auto-load with the gym's data
-
-**Note:** Each gym gets their own URL with their specific `clubId`. They cannot access other gyms' data because the gym selector is hidden and the club ID is locked in the URL.
+4. Fysiken can only see their own data - even if they modify the URL, the signature check will fail
 
 ## Quick Start
 
 ### Running on Replit
 
 1. Import this repository to Replit
-2. Add your Supabase API key to Replit Secrets:
+2. Add the following to Replit Secrets:
    - `SUPABASE_API_KEY` - Your Supabase anon/service key
+   - `EMBED_SECRET` - Random 64-char hex string for token signing
+   - `ADMIN_KEY` - Random 48-char hex string for admin API access
 3. Click "Run"
 4. Select a gym and date range, then click "Load Analytics"
 
@@ -96,7 +119,10 @@ When adding to a Zoezi page builder:
 
 ```bash
 npm install
-SUPABASE_API_KEY=your_key npm start
+SUPABASE_API_KEY=your_key \
+EMBED_SECRET=$(openssl rand -hex 32) \
+ADMIN_KEY=$(openssl rand -hex 24) \
+npm start
 ```
 
 The server will start on port 3000 (or the PORT environment variable).
@@ -112,12 +138,23 @@ The server will start on port 3000 (or the PORT environment variable).
 
 ## API Endpoints
 
+### Public Endpoints
+
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/health` | Health check with Supabase status |
 | `GET /api/gyms` | List all available gyms |
 | `GET /api/schedule/:clubId?fromDate=&toDate=` | Raw workout schedule data |
-| `GET /api/analytics/:clubId?fromDate=&toDate=` | Processed analytics data |
+| `GET /api/analytics/:clubId?fromDate=&toDate=` | Processed analytics data (admin use) |
+| `GET /api/verify-token?token=` | Verify an embed token |
+| `GET /api/embed/analytics?token=&fromDate=&toDate=` | **Secure** analytics via token |
+
+### Admin Endpoints (require `X-Admin-Key` header)
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/admin/embed-token` | Generate token for one gym |
+| `GET /api/admin/embed-tokens` | Generate tokens for all gyms |
 
 ## Supabase Configuration
 
@@ -136,6 +173,20 @@ This app expects a `Clubs` table in Supabase with the following columns:
 |----------|-------------|----------|
 | `PORT` | Server port (default: 3000) | No |
 | `SUPABASE_API_KEY` | Supabase anon or service key | Yes |
+| `EMBED_SECRET` | Secret key for signing embed tokens (min 32 chars, keep secure!) | Yes (for embeds) |
+| `ADMIN_KEY` | Admin API key for generating embed tokens | Yes (for embeds) |
+
+### Generating Secure Keys
+
+```bash
+# Generate EMBED_SECRET (keep this secret!)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Generate ADMIN_KEY
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+```
+
+Add these to Replit Secrets or your environment.
 
 ## Analytics Explained
 

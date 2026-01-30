@@ -6,11 +6,14 @@
  *
  * Environment Variables (add as Replit Secrets):
  * - SUPABASE_API_KEY: Your Supabase API key
+ * - EMBED_SECRET: Secret key for signing embed tokens (min 32 chars)
+ * - ADMIN_KEY: Admin API key for generating embed tokens
  * - PORT: Server port (default: 3000)
  */
 
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
 // Load date extensions
@@ -22,6 +25,10 @@ const PORT = process.env.PORT || 3000;
 // Supabase configuration
 const SUPABASE_URL = 'https://kzdrezwyvgwttnwvbild.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_API_KEY || '';
+
+// Embed security configuration
+const EMBED_SECRET = process.env.EMBED_SECRET || '';
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
 
 // Middleware
 app.use(express.json());
@@ -39,6 +46,89 @@ function getSupabase() {
     throw new Error('SUPABASE_API_KEY not configured');
   }
   return createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+/**
+ * Generate a secure embed token for a club
+ * Token format: clubId.timestamp.signature (all base64url encoded)
+ */
+function generateEmbedToken(clubId) {
+  if (!EMBED_SECRET) {
+    throw new Error('EMBED_SECRET not configured');
+  }
+
+  const timestamp = Date.now().toString();
+  const payload = `${clubId}.${timestamp}`;
+  const signature = crypto
+    .createHmac('sha256', EMBED_SECRET)
+    .update(payload)
+    .digest('base64url');
+
+  return `${Buffer.from(clubId).toString('base64url')}.${Buffer.from(timestamp).toString('base64url')}.${signature}`;
+}
+
+/**
+ * Verify and decode an embed token
+ * Returns { valid: true, clubId } or { valid: false, error }
+ */
+function verifyEmbedToken(token) {
+  if (!EMBED_SECRET) {
+    return { valid: false, error: 'EMBED_SECRET not configured' };
+  }
+
+  if (!token) {
+    return { valid: false, error: 'No token provided' };
+  }
+
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    return { valid: false, error: 'Invalid token format' };
+  }
+
+  try {
+    const clubId = Buffer.from(parts[0], 'base64url').toString();
+    const timestamp = Buffer.from(parts[1], 'base64url').toString();
+    const providedSignature = parts[2];
+
+    // Verify signature
+    const payload = `${clubId}.${timestamp}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', EMBED_SECRET)
+      .update(payload)
+      .digest('base64url');
+
+    if (!crypto.timingSafeEqual(Buffer.from(providedSignature), Buffer.from(expectedSignature))) {
+      return { valid: false, error: 'Invalid signature' };
+    }
+
+    // Optional: Check token age (e.g., reject tokens older than 1 year)
+    const tokenAge = Date.now() - parseInt(timestamp);
+    const maxAge = 365 * 24 * 60 * 60 * 1000; // 1 year in ms
+    if (tokenAge > maxAge) {
+      return { valid: false, error: 'Token expired' };
+    }
+
+    return { valid: true, clubId };
+  } catch (err) {
+    return { valid: false, error: 'Token decode failed' };
+  }
+}
+
+/**
+ * Middleware to verify admin API key
+ */
+function requireAdminKey(req, res, next) {
+  const apiKey = req.headers['x-admin-key'] || req.query.adminKey;
+
+  if (!ADMIN_KEY) {
+    return res.status(500).json({ error: 'ADMIN_KEY not configured on server' });
+  }
+
+  if (!apiKey || apiKey !== ADMIN_KEY) {
+    return res.status(401).json({ error: 'Invalid or missing admin key' });
+  }
+
+  next();
 }
 
 /**
@@ -352,6 +442,167 @@ app.get('/api/analytics/:clubId', async (req, res) => {
 });
 
 // =============================================================================
+// SECURE EMBED ROUTES
+// =============================================================================
+
+/**
+ * Generate embed token for a club (admin only)
+ * POST /api/admin/embed-token
+ * Body: { clubId: "123" }
+ * Headers: X-Admin-Key: your-admin-key
+ */
+app.post('/api/admin/embed-token', requireAdminKey, async (req, res) => {
+  try {
+    const { clubId } = req.body;
+
+    if (!clubId) {
+      return res.status(400).json({ error: 'clubId is required' });
+    }
+
+    // Verify club exists
+    const supabase = getSupabase();
+    const { data: club, error } = await supabase
+      .from('Clubs')
+      .select('Club_Zoezi_ID, Club_name')
+      .eq('Club_Zoezi_ID', clubId)
+      .single();
+
+    if (error || !club) {
+      return res.status(404).json({ error: 'Club not found' });
+    }
+
+    const token = generateEmbedToken(clubId);
+
+    res.json({
+      token,
+      clubId: club.Club_Zoezi_ID,
+      clubName: club.Club_name,
+      embedUrl: `${req.protocol}://${req.get('host')}/?token=${token}&hideHeader=true`
+    });
+  } catch (error) {
+    console.error('Error generating embed token:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * List all clubs with their embed tokens (admin only)
+ * GET /api/admin/embed-tokens
+ * Headers: X-Admin-Key: your-admin-key
+ */
+app.get('/api/admin/embed-tokens', requireAdminKey, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    const { data: clubs, error } = await supabase
+      .from('Clubs')
+      .select('Club_Zoezi_ID, Club_name')
+      .order('Club_name');
+
+    if (error) throw error;
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const tokens = clubs.map(club => {
+      const token = generateEmbedToken(club.Club_Zoezi_ID);
+      return {
+        clubId: club.Club_Zoezi_ID,
+        clubName: club.Club_name,
+        token,
+        embedUrl: `${baseUrl}/?token=${token}&hideHeader=true`
+      };
+    });
+
+    res.json(tokens);
+  } catch (error) {
+    console.error('Error generating embed tokens:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Verify a token (public - used by frontend)
+ * GET /api/verify-token?token=xxx
+ */
+app.get('/api/verify-token', async (req, res) => {
+  const { token } = req.query;
+  const result = verifyEmbedToken(token);
+
+  if (!result.valid) {
+    return res.status(401).json({ valid: false, error: result.error });
+  }
+
+  // Get club name for display
+  try {
+    const supabase = getSupabase();
+    const { data: club } = await supabase
+      .from('Clubs')
+      .select('Club_name')
+      .eq('Club_Zoezi_ID', result.clubId)
+      .single();
+
+    res.json({
+      valid: true,
+      clubId: result.clubId,
+      clubName: club?.Club_name || 'Unknown'
+    });
+  } catch {
+    res.json({ valid: true, clubId: result.clubId });
+  }
+});
+
+/**
+ * Get analytics using secure embed token
+ * GET /api/embed/analytics?token=xxx&fromDate=xxx&toDate=xxx
+ */
+app.get('/api/embed/analytics', async (req, res) => {
+  try {
+    const { token, fromDate, toDate } = req.query;
+
+    // Verify token
+    const tokenResult = verifyEmbedToken(token);
+    if (!tokenResult.valid) {
+      return res.status(401).json({ error: tokenResult.error });
+    }
+
+    const clubId = tokenResult.clubId;
+
+    if (!fromDate || !toDate) {
+      return res.status(400).json({ error: 'fromDate and toDate are required' });
+    }
+
+    // Get club config from Supabase
+    const supabase = getSupabase();
+    const { data: club, error } = await supabase
+      .from('Clubs')
+      .select('*')
+      .eq('Club_Zoezi_ID', clubId)
+      .single();
+
+    if (error) throw error;
+    if (!club) {
+      return res.status(404).json({ error: 'Club not found' });
+    }
+
+    // Fetch workout schedule from Zoezi
+    const url = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
+    const workouts = await fetchZoeziApi(url, club.Zoezi_Api_Key);
+
+    // Process analytics
+    const analytics = processAnalytics(workouts);
+    analytics.club = {
+      id: club.Club_Zoezi_ID,
+      name: club.Club_name,
+      domain: club.Zoezi_Domain
+    };
+    analytics.dateRange = { fromDate, toDate };
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Error fetching embed analytics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =============================================================================
 // FRONTEND ROUTES
 // =============================================================================
 
@@ -369,7 +620,9 @@ app.listen(PORT, () => {
 ║         GROUP TRAINING ANALYTICS DASHBOARD                 ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Server running on port ${PORT}                              ║
-║  Supabase: ${SUPABASE_KEY ? 'Configured' : 'Not configured - add SUPABASE_API_KEY'}              ║
+║  Supabase: ${SUPABASE_KEY ? 'Configured ✓' : 'Not configured - add SUPABASE_API_KEY'}            ║
+║  Embed Security: ${EMBED_SECRET ? 'Configured ✓' : 'Not configured - add EMBED_SECRET'}          ║
+║  Admin API: ${ADMIN_KEY ? 'Configured ✓' : 'Not configured - add ADMIN_KEY'}                ║
 ╚════════════════════════════════════════════════════════════╝
   `);
 });

@@ -195,20 +195,39 @@
     let config = {
       isIframeMode: false,
       presetClubId: null,
+      embedToken: null,       // Secure embed token
       hideHeader: false,
-      hideGymSelector: false
+      hideGymSelector: false,
+      isSecureEmbed: false    // Using token-based auth
     };
 
     // ==========================================================================
     // INITIALIZATION
     // ==========================================================================
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       // Parse URL parameters
       const params = new URLSearchParams(window.location.search);
-      config.presetClubId = params.get('clubId');
-      config.isIframeMode = params.get('embed') === 'true' || config.presetClubId !== null;
+      config.embedToken = params.get('token');
+      config.presetClubId = params.get('clubId');  // Legacy/insecure - kept for admin use
       config.hideHeader = params.get('hideHeader') === 'true';
-      config.hideGymSelector = config.presetClubId !== null;
+
+      // Secure embed mode (token-based)
+      if (config.embedToken) {
+        config.isSecureEmbed = true;
+        config.isIframeMode = true;
+        config.hideGymSelector = true;
+
+        // Verify token before proceeding
+        const tokenValid = await verifyToken();
+        if (!tokenValid) {
+          showTokenError();
+          return;
+        }
+      } else if (config.presetClubId) {
+        // Legacy mode - only for admin/internal use
+        config.isIframeMode = params.get('embed') === 'true' || true;
+        config.hideGymSelector = true;
+      }
 
       // Apply iframe mode styling
       if (config.isIframeMode) {
@@ -225,14 +244,65 @@
       }
 
       // Load gyms and set defaults
-      loadGyms();
+      if (!config.isSecureEmbed) {
+        loadGyms();
+      }
       setPreset('month');
+
+      // Auto-load for secure embed
+      if (config.isSecureEmbed) {
+        setTimeout(() => loadAnalytics(), 300);
+      }
     });
+
+    // ==========================================================================
+    // TOKEN VERIFICATION
+    // ==========================================================================
+    async function verifyToken() {
+      try {
+        const response = await fetch(`/api/verify-token?token=${encodeURIComponent(config.embedToken)}`);
+        const result = await response.json();
+
+        if (result.valid) {
+          config.presetClubId = result.clubId;
+          // Update title if club name available
+          if (result.clubName) {
+            document.title = `${result.clubName} Analytics | StrongSales`;
+          }
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('Token verification failed:', error);
+        return false;
+      }
+    }
+
+    function showTokenError() {
+      document.getElementById('content').innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20 text-center">
+          <div class="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mb-6">
+            <svg class="w-10 h-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p class="text-gray-500 max-w-md">Invalid or expired embed token. Please contact your administrator for a valid dashboard link.</p>
+        </div>
+      `;
+      // Hide controls bar for invalid tokens
+      document.getElementById('controls-bar').style.display = 'none';
+    }
 
     // ==========================================================================
     // API FUNCTIONS
     // ==========================================================================
     async function loadGyms() {
+      // Skip loading gyms in secure embed mode
+      if (config.isSecureEmbed) {
+        return;
+      }
+
       const select = document.getElementById('gym-select');
       try {
         const response = await fetch('/api/gyms');
@@ -243,8 +313,8 @@
         select.innerHTML = '<option value="">Select a gym...</option>' +
           gyms.map(g => `<option value="${g.Club_Zoezi_ID}">${g.Club_name}</option>`).join('');
 
-        // If preset club ID, select it and auto-load
-        if (config.presetClubId) {
+        // If preset club ID (legacy/admin mode), select it and auto-load
+        if (config.presetClubId && !config.isSecureEmbed) {
           select.value = config.presetClubId;
           // Auto-load after a short delay
           setTimeout(() => loadAnalytics(), 500);
@@ -283,7 +353,7 @@
       const fromDate = document.getElementById('from-date').value;
       const toDate = document.getElementById('to-date').value;
 
-      if (!clubId) {
+      if (!clubId && !config.isSecureEmbed) {
         showError('Please select a gym');
         return;
       }
@@ -313,7 +383,16 @@
       `;
 
       try {
-        const response = await fetch(`/api/analytics/${clubId}?fromDate=${fromDate}&toDate=${toDate}`);
+        let response;
+
+        // Use secure embed endpoint if using token
+        if (config.isSecureEmbed && config.embedToken) {
+          response = await fetch(`/api/embed/analytics?token=${encodeURIComponent(config.embedToken)}&fromDate=${fromDate}&toDate=${toDate}`);
+        } else {
+          // Standard endpoint for admin view
+          response = await fetch(`/api/analytics/${clubId}?fromDate=${fromDate}&toDate=${toDate}`);
+        }
+
         analytics = await response.json();
 
         if (analytics.error) throw new Error(analytics.error);
