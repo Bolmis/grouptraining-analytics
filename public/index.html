@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zoezi App</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #28a745;
+    }
+
+    .status-dot.error {
+      background: #dc3545;
+    }
+
+    .status-dot.loading {
+      background: #ffc107;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    h2 {
+      color: #333;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .info-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .info-item {
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .info-item strong {
+      display: block;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+
+    .info-item span {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .code-block {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+    }
+
+    .code-block .comment {
+      color: #6a9955;
+    }
+
+    .code-block .keyword {
+      color: #569cd6;
+    }
+
+    .code-block .string {
+      color: #ce9178;
+    }
+
+    .data-section {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #eee;
+    }
+
+    #data-output {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #5a6fd6;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Zoezi App Starter</h1>
+      <p class="subtitle">Your starting point for Zoezi API integrations</p>
+
+      <div class="status" id="status">
+        <div class="status-dot loading"></div>
+        <span>Checking server status...</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Getting Started</h2>
+      <div class="info-grid">
+        <div class="info-item">
+          <strong>1. Configure Environment</strong>
+          <span>Add ZOEZI_API_URL and ZOEZI_API_KEY to your Replit Secrets</span>
+        </div>
+        <div class="info-item">
+          <strong>2. Add API Routes</strong>
+          <span>Edit index.js to add endpoints that fetch data from Zoezi</span>
+        </div>
+        <div class="info-item">
+          <strong>3. Build Frontend</strong>
+          <span>Modify this file (public/index.html) to display your data</span>
+        </div>
+        <div class="info-item">
+          <strong>4. Read the Docs</strong>
+          <span>Check Zoezi API docs.json and the docs/ folder for API reference</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Example API Call</h2>
+      <div class="code-block">
+<span class="comment">// In index.js - add this route:</span>
+app.get(<span class="string">'/api/products'</span>, <span class="keyword">async</span> (req, res) => {
+  <span class="keyword">const</span> response = <span class="keyword">await</span> fetch(<span class="string">`${ZOEZI_API_URL}/api/products`</span>);
+  <span class="keyword">const</span> data = <span class="keyword">await</span> response.json();
+  res.json(data);
+});
+
+<span class="comment">// In your frontend JavaScript:</span>
+<span class="keyword">const</span> products = <span class="keyword">await</span> fetch(<span class="string">'/api/products'</span>).then(r => r.json());
+      </div>
+
+      <div class="data-section">
+        <button onclick="checkHealth()">Test Server Connection</button>
+        <div id="data-output" style="margin-top: 1rem; display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check server status on page load
+    async function checkServerStatus() {
+      const statusEl = document.getElementById('status');
+
+      try {
+        const response = await fetch('/api/health');
+        const data = await response.json();
+
+        if (data.status === 'ok') {
+          statusEl.innerHTML = `
+            <div class="status-dot"></div>
+            <span>Server running ${data.zoezi_configured ? '- Zoezi configured' : '- Zoezi not configured'}</span>
+          `;
+        }
+      } catch (error) {
+        statusEl.innerHTML = `
+          <div class="status-dot error"></div>
+          <span>Server not responding</span>
+        `;
+      }
+    }
+
+    // Test the health endpoint
+    async function checkHealth() {
+      const outputEl = document.getElementById('data-output');
+      outputEl.style.display = 'block';
+      outputEl.textContent = 'Fetching...';
+
+      try {
+        const response = await fetch('/api/health');
+        const data = await response.json();
+        outputEl.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        outputEl.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // Run on page load
+    checkServerStatus();
+  </script>
+</body>
+</html>
