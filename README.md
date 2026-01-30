@@ -112,8 +112,11 @@ All admin endpoints require the `X-Admin-Key` header.
    - `SUPABASE_API_KEY` - Your Supabase anon/service key
    - `EMBED_SECRET` - Random 64-char hex string for token signing
    - `ADMIN_KEY` - Random 48-char hex string for admin API access
+   - `ADMIN_PASSWORD` - Your chosen admin password
+   - `SESSION_SECRET` - Random 64-char hex string for sessions
 3. Click "Run"
-4. Select a gym and date range, then click "Load Analytics"
+4. Go to the URL and login with your admin password
+5. Select a gym and date range, then click "Load Analytics"
 
 ### Running Locally
 
@@ -122,6 +125,8 @@ npm install
 SUPABASE_API_KEY=your_key \
 EMBED_SECRET=$(openssl rand -hex 32) \
 ADMIN_KEY=$(openssl rand -hex 24) \
+ADMIN_PASSWORD=your_secure_password \
+SESSION_SECRET=$(openssl rand -hex 32) \
 npm start
 ```
 
@@ -173,8 +178,10 @@ This app expects a `Clubs` table in Supabase with the following columns:
 |----------|-------------|----------|
 | `PORT` | Server port (default: 3000) | No |
 | `SUPABASE_API_KEY` | Supabase anon or service key | Yes |
-| `EMBED_SECRET` | Secret key for signing embed tokens (min 32 chars, keep secure!) | Yes (for embeds) |
-| `ADMIN_KEY` | Admin API key for generating embed tokens | Yes (for embeds) |
+| `EMBED_SECRET` | Secret key for signing embed tokens (min 32 chars) | Yes |
+| `ADMIN_KEY` | API key for admin endpoints (generating embed tokens) | Yes |
+| `ADMIN_PASSWORD` | Password for admin dashboard login | Yes |
+| `SESSION_SECRET` | Secret for session encryption (min 32 chars) | Yes |
 
 ### Generating Secure Keys
 
@@ -182,11 +189,39 @@ This app expects a `Clubs` table in Supabase with the following columns:
 # Generate EMBED_SECRET (keep this secret!)
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-# Generate ADMIN_KEY
+# Generate SESSION_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Generate ADMIN_KEY (for API access)
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+
+# ADMIN_PASSWORD - choose a strong password you'll remember
 ```
 
 Add these to Replit Secrets or your environment.
+
+## Authentication
+
+The admin dashboard is protected by password authentication.
+
+### Security Features
+
+- **Session-based authentication** - Secure HTTP-only cookies
+- **24-hour sessions** - Automatic logout after 24 hours
+- **Timing-safe password comparison** - Protection against timing attacks
+- **HTTPS required** - Cookies are secure in production
+
+### Access Levels
+
+| URL | Access |
+|-----|--------|
+| `/login` | Public - login page |
+| `/` | **Protected** - requires login |
+| `/?token=xxx` | Public - valid embed token grants access |
+| `/api/gyms` | **Protected** - requires login |
+| `/api/analytics/:clubId` | **Protected** - requires login |
+| `/api/embed/analytics` | Public - requires valid embed token |
+| `/api/admin/*` | **Protected** - requires `X-Admin-Key` header |
 
 ## Analytics Explained
 

@@ -8,10 +8,13 @@
  * - SUPABASE_API_KEY: Your Supabase API key
  * - EMBED_SECRET: Secret key for signing embed tokens (min 32 chars)
  * - ADMIN_KEY: Admin API key for generating embed tokens
+ * - ADMIN_PASSWORD: Password for admin dashboard login
+ * - SESSION_SECRET: Secret for session encryption (min 32 chars)
  * - PORT: Server port (default: 3000)
  */
 
 const express = require('express');
+const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
@@ -26,13 +29,36 @@ const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = 'https://kzdrezwyvgwttnwvbild.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_API_KEY || '';
 
-// Embed security configuration
+// Security configuration
 const EMBED_SECRET = process.env.EMBED_SECRET || '';
 const ADMIN_KEY = process.env.ADMIN_KEY || '';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // Middleware
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  name: 'strongsales_session',
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
+  }
+}));
+
+// Trust proxy for secure cookies behind Replit's proxy
+app.set('trust proxy', 1);
+
+// Static files (but not index.html - that's protected)
+app.use('/Strongsales%20logo%20WHITE.png', express.static('public/Strongsales logo WHITE.png'));
+app.use('/Strongsales%20logo%20black%20%26%20purple%20Transparent.png', express.static('public/Strongsales logo black & purple Transparent.png'));
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -326,24 +352,170 @@ function processAnalytics(workouts) {
 }
 
 // =============================================================================
+// AUTHENTICATION
+// =============================================================================
+
+/**
+ * Check if user is authenticated
+ */
+function isAuthenticated(req, res, next) {
+  if (req.session && req.session.isAdmin) {
+    return next();
+  }
+  // For API requests, return 401
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  // For page requests, redirect to login
+  return res.redirect('/login');
+}
+
+/**
+ * Check if request has valid embed token (for public embed access)
+ */
+function hasValidEmbedToken(req) {
+  const token = req.query.token;
+  if (!token) return false;
+  const result = verifyEmbedToken(token);
+  return result.valid;
+}
+
+/**
+ * Login page
+ */
+app.get('/login', (req, res) => {
+  // If already logged in, redirect to dashboard
+  if (req.session && req.session.isAdmin) {
+    return res.redirect('/');
+  }
+
+  const error = req.query.error;
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Login | StrongSales Analytics</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <style>
+        .gradient-bg {
+          background: linear-gradient(135deg, #AFACFB 0%, #8b5cf6 50%, #6d28d9 100%);
+        }
+      </style>
+    </head>
+    <body class="min-h-screen gradient-bg flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+          <img src="/Strongsales%20logo%20black%20%26%20purple%20Transparent.png" alt="StrongSales" class="h-12 mx-auto mb-4">
+          <h1 class="text-2xl font-bold text-gray-900">Admin Login</h1>
+          <p class="text-gray-500 text-sm mt-1">Group Training Analytics Dashboard</p>
+        </div>
+
+        ${error ? `
+          <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+            Invalid password. Please try again.
+          </div>
+        ` : ''}
+
+        <form method="POST" action="/login" class="space-y-6">
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autofocus
+              class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-all"
+              placeholder="Enter admin password"
+            >
+          </div>
+          <button
+            type="submit"
+            class="w-full py-3 px-4 bg-gradient-to-r from-purple-400 to-purple-600 hover:from-purple-500 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg transition-all"
+          >
+            Sign In
+          </button>
+        </form>
+
+        <p class="mt-6 text-center text-xs text-gray-400">
+          Secure access for StrongSales administrators only
+        </p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+/**
+ * Login handler
+ */
+app.post('/login', (req, res) => {
+  const { password } = req.body;
+
+  if (!ADMIN_PASSWORD) {
+    console.error('ADMIN_PASSWORD not configured');
+    return res.redirect('/login?error=1');
+  }
+
+  // Secure password comparison (timing-safe)
+  const passwordBuffer = Buffer.from(password || '');
+  const adminBuffer = Buffer.from(ADMIN_PASSWORD);
+
+  // Check length first, then compare
+  if (passwordBuffer.length === adminBuffer.length &&
+      crypto.timingSafeEqual(passwordBuffer, adminBuffer)) {
+    req.session.isAdmin = true;
+    req.session.loginTime = Date.now();
+    return res.redirect('/');
+  }
+
+  // Invalid password
+  res.redirect('/login?error=1');
+});
+
+/**
+ * Logout handler
+ */
+app.post('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+    }
+    res.redirect('/login');
+  });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+    }
+    res.redirect('/login');
+  });
+});
+
+// =============================================================================
 // API ROUTES
 // =============================================================================
 
 /**
- * Health check
+ * Health check (public)
  */
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    supabase_configured: !!SUPABASE_KEY
+    supabase_configured: !!SUPABASE_KEY,
+    auth_configured: !!ADMIN_PASSWORD
   });
 });
 
 /**
- * Get list of available gyms from Supabase
+ * Get list of available gyms from Supabase (protected)
  */
-app.get('/api/gyms', async (req, res) => {
+app.get('/api/gyms', isAuthenticated, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -363,7 +535,7 @@ app.get('/api/gyms', async (req, res) => {
 /**
  * Fetch workout schedule for a gym
  */
-app.get('/api/schedule/:clubId', async (req, res) => {
+app.get('/api/schedule/:clubId', isAuthenticated, async (req, res) => {
   try {
     const { clubId } = req.params;
     const { fromDate, toDate } = req.query;
@@ -399,7 +571,7 @@ app.get('/api/schedule/:clubId', async (req, res) => {
 /**
  * Get analytics for a gym's workout schedule
  */
-app.get('/api/analytics/:clubId', async (req, res) => {
+app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
   try {
     const { clubId } = req.params;
     const { fromDate, toDate } = req.query;
@@ -639,8 +811,44 @@ app.get('/api/embed/analytics', async (req, res) => {
 // FRONTEND ROUTES
 // =============================================================================
 
+/**
+ * Main dashboard - requires authentication OR valid embed token
+ */
+app.get('/', (req, res, next) => {
+  // Allow access with valid embed token
+  if (hasValidEmbedToken(req)) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
+
+  // Otherwise require authentication
+  if (req.session && req.session.isAdmin) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
+
+  // Redirect to login
+  return res.redirect('/login');
+});
+
+/**
+ * Catch-all for other routes - check authentication
+ */
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  // Allow static files
+  if (req.path.match(/\.(png|jpg|jpeg|gif|svg|css|js|ico)$/i)) {
+    return res.sendFile(path.join(__dirname, 'public', req.path));
+  }
+
+  // Check for embed token
+  if (hasValidEmbedToken(req)) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
+
+  // Require authentication
+  if (req.session && req.session.isAdmin) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
+
+  return res.redirect('/login');
 });
 
 // =============================================================================
@@ -656,6 +864,7 @@ app.listen(PORT, () => {
 ║  Supabase: ${SUPABASE_KEY ? 'Configured ✓' : 'Not configured - add SUPABASE_API_KEY'}            ║
 ║  Embed Security: ${EMBED_SECRET ? 'Configured ✓' : 'Not configured - add EMBED_SECRET'}          ║
 ║  Admin API: ${ADMIN_KEY ? 'Configured ✓' : 'Not configured - add ADMIN_KEY'}                ║
+║  Admin Login: ${ADMIN_PASSWORD ? 'Configured ✓' : 'Not configured - add ADMIN_PASSWORD'}          ║
 ╚════════════════════════════════════════════════════════════╝
   `);
 });
