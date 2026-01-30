@@ -473,11 +473,14 @@ app.post('/api/admin/embed-token', requireAdminKey, async (req, res) => {
 
     const token = generateEmbedToken(clubId);
 
+    // Use https in production (Replit runs behind proxy so req.protocol is http)
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+
     res.json({
       token,
       clubId: club.Club_Zoezi_ID,
       clubName: club.Club_name,
-      embedUrl: `${req.protocol}://${req.get('host')}/?token=${token}&hideHeader=true`
+      embedUrl: `${protocol}://${req.get('host')}/?token=${token}&hideHeader=true`
     });
   } catch (error) {
     console.error('Error generating embed token:', error);
@@ -500,7 +503,9 @@ app.get('/api/admin/embed-tokens', requireAdminKey, async (req, res) => {
 
     if (error) throw error;
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    // Use https in production (Replit runs behind proxy)
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const baseUrl = `${protocol}://${req.get('host')}`;
     const tokens = clubs.map(club => {
       const token = generateEmbedToken(club.Club_Zoezi_ID);
       return {
