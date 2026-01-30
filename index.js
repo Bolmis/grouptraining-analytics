@@ -593,9 +593,20 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
       return res.status(404).json({ error: 'Club not found' });
     }
 
-    // Fetch workout schedule from Zoezi
-    const url = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
-    const workouts = await fetchZoeziApi(url, club.Zoezi_Api_Key);
+    // Fetch workout schedule and sites from Zoezi in parallel
+    const workoutUrl = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
+    const sitesUrl = `https://${club.Zoezi_Domain}/api/site/get/all`;
+
+    const [workouts, sites] = await Promise.all([
+      fetchZoeziApi(workoutUrl, club.Zoezi_Api_Key),
+      fetchZoeziApi(sitesUrl, club.Zoezi_Api_Key).catch(() => [])
+    ]);
+
+    // Create site lookup map
+    const siteMap = {};
+    (sites || []).forEach(s => {
+      if (s && s.id) siteMap[s.id] = s.name;
+    });
 
     // Process analytics
     const analytics = processAnalytics(workouts);
@@ -606,6 +617,10 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
     };
     analytics.dateRange = { fromDate, toDate };
 
+    // Include sites list (only if more than 1)
+    const sitesList = (sites || []).filter(s => s && !s.removed).map(s => ({ id: s.id, name: s.name }));
+    analytics.sites = sitesList.length > 1 ? sitesList : [];
+
     // Include simplified raw workouts for client-side filtering
     analytics.rawWorkouts = workouts.map(w => ({
       id: w.id,
@@ -614,6 +629,8 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
       startTime: w.startTime,
       space: w.space || 0,
       numBooked: w.numBooked || 0,
+      siteId: w.site_id || w.siteId || null,
+      siteName: siteMap[w.site_id] || siteMap[w.siteId] || null,
       staffs: (w.staffs || []).map(s => ({
         name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
         imagekey: s.imagekey
@@ -773,9 +790,20 @@ app.get('/api/embed/analytics', async (req, res) => {
       return res.status(404).json({ error: 'Club not found' });
     }
 
-    // Fetch workout schedule from Zoezi
-    const url = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
-    const workouts = await fetchZoeziApi(url, club.Zoezi_Api_Key);
+    // Fetch workout schedule and sites from Zoezi in parallel
+    const workoutUrl = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
+    const sitesUrl = `https://${club.Zoezi_Domain}/api/site/get/all`;
+
+    const [workouts, sites] = await Promise.all([
+      fetchZoeziApi(workoutUrl, club.Zoezi_Api_Key),
+      fetchZoeziApi(sitesUrl, club.Zoezi_Api_Key).catch(() => [])
+    ]);
+
+    // Create site lookup map
+    const siteMap = {};
+    (sites || []).forEach(s => {
+      if (s && s.id) siteMap[s.id] = s.name;
+    });
 
     // Process analytics
     const analytics = processAnalytics(workouts);
@@ -786,6 +814,10 @@ app.get('/api/embed/analytics', async (req, res) => {
     };
     analytics.dateRange = { fromDate, toDate };
 
+    // Include sites list (only if more than 1)
+    const sitesList = (sites || []).filter(s => s && !s.removed).map(s => ({ id: s.id, name: s.name }));
+    analytics.sites = sitesList.length > 1 ? sitesList : [];
+
     // Include simplified raw workouts for client-side filtering
     analytics.rawWorkouts = workouts.map(w => ({
       id: w.id,
@@ -794,6 +826,8 @@ app.get('/api/embed/analytics', async (req, res) => {
       startTime: w.startTime,
       space: w.space || 0,
       numBooked: w.numBooked || 0,
+      siteId: w.site_id || w.siteId || null,
+      siteName: siteMap[w.site_id] || siteMap[w.siteId] || null,
       staffs: (w.staffs || []).map(s => ({
         name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
         imagekey: s.imagekey
