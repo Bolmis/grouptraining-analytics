@@ -572,7 +572,7 @@
         if (gyms.error) throw new Error(gyms.error);
 
         select.innerHTML = '<option value="">Select a gym...</option>' +
-          gyms.map(g => `<option value="${g.Club_Zoezi_ID}">${g.Club_Name}</option>`).join('');
+          gyms.map(g => `<option value="${g.Club_Zoezi_ID}">${g.Club_name}</option>`).join('');
       } catch (error) {
         console.error('Error loading gyms:', error);
         select.innerHTML = '<option value="">Error loading gyms</option>';

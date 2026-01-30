@@ -258,8 +258,8 @@ app.get('/api/gyms', async (req, res) => {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('Clubs')
-      .select('Club_Zoezi_ID, Club_Name, Zoezi_Domain')
-      .order('Club_Name');
+      .select('Club_Zoezi_ID, Club_name, Zoezi_Domain')
+      .order('Club_name');
 
     if (error) throw error;
 
@@ -339,7 +339,7 @@ app.get('/api/analytics/:clubId', async (req, res) => {
     const analytics = processAnalytics(workouts);
     analytics.club = {
       id: club.Club_Zoezi_ID,
-      name: club.Club_Name,
+      name: club.Club_name,
       domain: club.Zoezi_Domain
     };
     analytics.dateRange = { fromDate, toDate };
