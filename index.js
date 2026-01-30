@@ -434,6 +434,20 @@ app.get('/api/analytics/:clubId', async (req, res) => {
     };
     analytics.dateRange = { fromDate, toDate };
 
+    // Include simplified raw workouts for client-side filtering
+    analytics.rawWorkouts = workouts.map(w => ({
+      id: w.id,
+      typeName: w.workoutType?.name || 'Unknown',
+      typeColor: w.workoutType?.color || '#667eea',
+      startTime: w.startTime,
+      space: w.space || 0,
+      numBooked: w.numBooked || 0,
+      staffs: (w.staffs || []).map(s => ({
+        name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
+        imagekey: s.imagekey
+      }))
+    }));
+
     res.json(analytics);
   } catch (error) {
     console.error('Error fetching analytics:', error);
@@ -599,6 +613,20 @@ app.get('/api/embed/analytics', async (req, res) => {
       domain: club.Zoezi_Domain
     };
     analytics.dateRange = { fromDate, toDate };
+
+    // Include simplified raw workouts for client-side filtering
+    analytics.rawWorkouts = workouts.map(w => ({
+      id: w.id,
+      typeName: w.workoutType?.name || 'Unknown',
+      typeColor: w.workoutType?.color || '#667eea',
+      startTime: w.startTime,
+      space: w.space || 0,
+      numBooked: w.numBooked || 0,
+      staffs: (w.staffs || []).map(s => ({
+        name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
+        imagekey: s.imagekey
+      }))
+    }));
 
     res.json(analytics);
   } catch (error) {
