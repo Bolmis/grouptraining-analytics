@@ -277,6 +277,7 @@
     let charts = {};
     let selectedClassTypes = new Set();  // Selected class type names
     let allClassTypes = [];   // All available class types
+    let selectedInstructor = null;  // Selected instructor name (null = all)
     let config = {
       isIframeMode: false,
       presetClubId: null,
@@ -494,11 +495,12 @@
         // Extract all class types for the filter
         allClassTypes = rawAnalytics.byType.map(t => ({ name: t.name, color: t.color }));
 
-        // Select all by default
+        // Reset filters to default (all classes, no instructor filter)
         selectedClassTypes = new Set(allClassTypes.map(t => t.name));
+        selectedInstructor = null;
 
         // Apply filter and render
-        applyClassTypeFilter();
+        applyFilters();
         renderDashboard();
       } catch (error) {
         console.error('Error loading analytics:', error);
@@ -530,19 +532,30 @@
     }
 
     // ==========================================================================
-    // CLASS TYPE FILTER
+    // CLASS TYPE & INSTRUCTOR FILTER
     // ==========================================================================
-    function applyClassTypeFilter() {
+    function applyFilters() {
       if (!rawAnalytics || !rawAnalytics.rawWorkouts) return;
 
-      // If all selected, just use raw data
-      if (selectedClassTypes.size === allClassTypes.length) {
+      // If all classes selected and no instructor filter, just use raw data
+      if (selectedClassTypes.size === allClassTypes.length && !selectedInstructor) {
         analytics = { ...rawAnalytics };
         return;
       }
 
-      // Filter raw workouts by selected class types
-      const filteredWorkouts = rawAnalytics.rawWorkouts.filter(w => selectedClassTypes.has(w.typeName));
+      // Filter raw workouts by selected class types AND instructor
+      const filteredWorkouts = rawAnalytics.rawWorkouts.filter(w => {
+        // Class type filter
+        if (!selectedClassTypes.has(w.typeName)) return false;
+
+        // Instructor filter
+        if (selectedInstructor) {
+          const hasInstructor = w.staffs && w.staffs.some(s => s.name === selectedInstructor);
+          if (!hasInstructor) return false;
+        }
+
+        return true;
+      });
 
       // Recalculate everything from filtered workouts
       const byType = {};
@@ -718,21 +731,33 @@
         selectedClassTypes.add(typeName);
       }
       updateFilterDropdown();
-      applyClassTypeFilter();
+      applyFilters();
       renderDashboard();
     }
 
     function selectAllClassTypes() {
       selectedClassTypes = new Set(allClassTypes.map(t => t.name));
       updateFilterDropdown();
-      applyClassTypeFilter();
+      applyFilters();
       renderDashboard();
     }
 
     function clearAllClassTypes() {
       selectedClassTypes.clear();
       updateFilterDropdown();
-      applyClassTypeFilter();
+      applyFilters();
+      renderDashboard();
+    }
+
+    function selectInstructor(instructorName) {
+      selectedInstructor = instructorName;
+      applyFilters();
+      renderDashboard();
+    }
+
+    function clearInstructorFilter() {
+      selectedInstructor = null;
+      applyFilters();
       renderDashboard();
     }
 
@@ -942,16 +967,19 @@
         </div>
 
         <!-- Filter Active Notice -->
-        ${selectedClassTypes.size < allClassTypes.length ? `
-          <div class="mb-6 px-4 py-3 bg-strongsales-50 border border-strongsales-200 rounded-xl flex items-center gap-3">
+        ${(selectedClassTypes.size < allClassTypes.length || selectedInstructor) ? `
+          <div class="mb-6 px-4 py-3 bg-strongsales-50 border border-strongsales-200 rounded-xl flex flex-wrap items-center gap-3">
             <svg class="w-5 h-5 text-strongsales-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
             </svg>
             <span class="text-sm text-strongsales-700">
-              <strong>Filter active:</strong> Showing data for ${selectedClassTypes.size} of ${allClassTypes.length} class types
+              <strong>Filters active:</strong>
+              ${selectedClassTypes.size < allClassTypes.length ? `${selectedClassTypes.size} of ${allClassTypes.length} class types` : ''}
+              ${selectedClassTypes.size < allClassTypes.length && selectedInstructor ? ' · ' : ''}
+              ${selectedInstructor ? `Instructor: ${selectedInstructor}` : ''}
             </span>
-            <button onclick="selectAllClassTypes()" class="ml-auto text-sm font-medium text-strongsales-600 hover:text-strongsales-800">
-              Show all
+            <button onclick="selectAllClassTypes(); clearInstructorFilter();" class="ml-auto text-sm font-medium text-strongsales-600 hover:text-strongsales-800">
+              Clear all filters
             </button>
           </div>
         ` : ''}
@@ -1079,12 +1107,29 @@
         ${byInstructor.length > 0 ? `
           <div class="bg-white rounded-2xl p-6 card-shadow">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">Instructor Performance</h3>
-              <span class="text-sm text-gray-500">${byInstructor.length} instructors</span>
+              <div class="flex items-center gap-3">
+                <h3 class="text-lg font-semibold text-gray-900">Instructor Performance</h3>
+                ${selectedInstructor ? `
+                  <span class="px-3 py-1 bg-strongsales-100 text-strongsales-700 text-sm font-medium rounded-full flex items-center gap-2">
+                    ${selectedInstructor}
+                    <button onclick="clearInstructorFilter()" class="hover:text-strongsales-900">
+                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </span>
+                ` : ''}
+              </div>
+              <span class="text-sm text-gray-500">${byInstructor.length} instructor${byInstructor.length !== 1 ? 's' : ''}</span>
             </div>
+            ${selectedInstructor ? `
+              <p class="text-sm text-gray-500 mb-4">Showing all data filtered by <strong>${selectedInstructor}</strong>. Click the X to see all instructors.</p>
+            ` : `
+              <p class="text-sm text-gray-500 mb-4">Click an instructor to filter all data by their classes.</p>
+            `}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto pr-2" style="scrollbar-width: thin; scrollbar-color: #AFACFB #f3f4f6;">
               ${byInstructor.map((inst) => `
-                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div onclick="selectInstructor('${inst.name.replace(/'/g, "\\'")}')" class="flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${selectedInstructor === inst.name ? 'bg-strongsales-100 ring-2 ring-strongsales-300' : 'bg-gray-50 hover:bg-gray-100'}">
                   <div class="w-12 h-12 gradient-bg rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                     ${inst.name.charAt(0)}
                   </div>
