@@ -1,124 +1,130 @@
-# Zoezi App Starter
+# Group Training Analytics
 
-A starter template for building apps that integrate with the Zoezi gym membership platform API.
+A powerful analytics dashboard for Zoezi group training classes. Analyze attendance rates, class performance, instructor metrics, and trends across your gym network.
 
-## What This Is
+## Features
 
-This repository provides everything you need to start building custom applications that interact with the Zoezi API:
+- **Multi-Gym Support** - Select from all configured gyms in your Supabase database
+- **Flexible Date Ranges** - Quick presets (7, 30, 90 days) or custom date selection
+- **Rich Analytics Dashboard**:
+  - Overall attendance rate and summary statistics
+  - Attendance trends over time (dual-axis chart)
+  - Performance by class type with ranking
+  - Day of week analysis
+  - Peak hours visualization
+  - Instructor performance metrics
+  - Class distribution breakdown
+- **Data Export** - Export analytics to CSV for further analysis
+- **Interactive Charts** - Powered by Chart.js with hover tooltips
 
-- **API Documentation** - Complete Zoezi API reference (`Zoezi API docs.json`)
-- **Architecture Guides** - Understanding how Zoezi works (`docs/`)
-- **Date Utilities** - Helpful date functions (`dateextensions.js`)
-- **Server Template** - Ready-to-run Express server for Replit (`index.js`)
+## Screenshots
+
+The dashboard displays:
+- Summary cards showing overall attendance rate, total classes, avg per class, fully booked %, and empty classes
+- Line chart showing attendance trend over the selected period
+- Horizontal bar chart ranking class types by performance
+- Bar charts for day-of-week and hourly analysis
+- Doughnut chart showing class distribution
+- Performance table with detailed metrics per class type
+- Instructor cards showing individual performance
 
 ## Quick Start
 
 ### Running on Replit
 
 1. Import this repository to Replit
-2. The `index.js` file will automatically be detected as the entry point
-3. Add your Zoezi API credentials to Replit Secrets:
-   - `ZOEZI_API_URL` - Your Zoezi API base URL
-   - `ZOEZI_API_KEY` - Your API key (if required)
-4. Click "Run"
+2. Add your Supabase API key to Replit Secrets:
+   - `SUPABASE_API_KEY` - Your Supabase anon/service key
+3. Click "Run"
+4. Select a gym and date range, then click "Load Analytics"
 
 ### Running Locally
 
 ```bash
 npm install
-npm start
+SUPABASE_API_KEY=your_key npm start
 ```
 
 The server will start on port 3000 (or the PORT environment variable).
 
-## Repository Structure
+## How It Works
 
-```
-zoezi-app-starter/
-├── index.js                    # Express server entry point (Replit-ready)
-├── public/                     # Static frontend files
-│   └── index.html              # Frontend entry point
-├── Zoezi API docs.json         # Complete Zoezi API documentation
-├── dateextensions.js           # Date utility functions
-├── docs/                       # Zoezi documentation
-│   ├── README.md               # Documentation overview
-│   ├── zoezi-architecture/     # System architecture docs
-│   ├── zoezi-patterns/         # Integration patterns
-│   └── zoezi-components/       # Component reference
-├── CLAUDE.md                   # AI assistant instructions
-└── README.md                   # This file
-```
+1. **Gym Selection**: The app fetches available gyms from your Supabase `Clubs` table
+2. **Data Fetching**: When you load analytics, it:
+   - Retrieves the gym's Zoezi API credentials from Supabase
+   - Calls the Zoezi API to fetch workout schedule data
+   - Processes the data into analytics
+3. **Visualization**: The frontend renders charts and tables using the processed data
 
-## Building Your App
+## API Endpoints
 
-### 1. Understand the Zoezi API
-
-Start by reading the API documentation in `Zoezi API docs.json`. Key endpoints include:
-
-- **Authentication** - User login and session management
-- **Members** - Member data and subscriptions
-- **Products** - Shop items and memberships
-- **Bookings** - Group training and resource bookings
-- **Sites** - Multi-location support
-
-### 2. Backend (index.js)
-
-The Express server provides:
-
-- API proxy endpoints to Zoezi
-- Static file serving for the frontend
-- Environment variable configuration
-
-Example API call:
-
-```javascript
-// In index.js
-app.get('/api/products', async (req, res) => {
-  const response = await fetch(`${ZOEZI_API_URL}/api/products`, {
-    headers: { 'Authorization': `Bearer ${API_KEY}` }
-  });
-  const data = await response.json();
-  res.json(data);
-});
-```
-
-### 3. Frontend (public/)
-
-Build your frontend in the `public/` folder. The included `index.html` provides a basic starting point.
-
-Example fetching data:
-
-```javascript
-// In your frontend JavaScript
-const products = await fetch('/api/products').then(r => r.json());
-```
-
-## Documentation Index
-
-| Document | Description |
+| Endpoint | Description |
 |----------|-------------|
-| [docs/README.md](./docs/README.md) | Documentation overview |
-| [docs/zoezi-architecture/SYSTEM-OVERVIEW.md](./docs/zoezi-architecture/SYSTEM-OVERVIEW.md) | Tech stack & architecture |
-| [docs/zoezi-architecture/SERVICES-AND-STATE.md](./docs/zoezi-architecture/SERVICES-AND-STATE.md) | API services reference |
-| [docs/zoezi-patterns/INTEGRATION-PATTERNS.md](./docs/zoezi-patterns/INTEGRATION-PATTERNS.md) | Common integration patterns |
+| `GET /api/health` | Health check with Supabase status |
+| `GET /api/gyms` | List all available gyms |
+| `GET /api/schedule/:clubId?fromDate=&toDate=` | Raw workout schedule data |
+| `GET /api/analytics/:clubId?fromDate=&toDate=` | Processed analytics data |
+
+## Supabase Configuration
+
+This app expects a `Clubs` table in Supabase with the following columns:
+
+| Column | Description |
+|--------|-------------|
+| `Club_Zoezi_ID` | The Zoezi club ID |
+| `Club_Name` | Display name for the gym |
+| `Zoezi_Domain` | The Zoezi domain (e.g., `fysiken.zoezi.se`) |
+| `Zoezi_Api_Key` | API key for authentication |
 
 ## Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `PORT` | Server port (default: 3000) | No |
-| `ZOEZI_API_URL` | Zoezi API base URL | Yes |
-| `ZOEZI_API_KEY` | API authentication key | Depends |
+| `SUPABASE_API_KEY` | Supabase anon or service key | Yes |
 
-## Example App Ideas
+## Analytics Explained
 
-- **Member Dashboard** - Display member info, bookings, and subscriptions
-- **Class Schedule** - Show upcoming group training sessions
-- **Product Catalog** - Browse and display shop products
-- **Booking Widget** - Embeddable booking interface
-- **Attendance Tracker** - Monitor gym visits and check-ins
-- **Revenue Reports** - Visualize sales and membership data
+### Attendance Rate
+`(Total Bookings / Total Capacity) * 100`
 
-## For AI Assistants
+A class with 8 bookings out of 12 spots = 66.7% attendance rate.
 
-See [CLAUDE.md](./CLAUDE.md) for AI-specific development instructions.
+### Class Performance Ranking
+Classes are ranked by their attendance rate, with color-coded performance indicators:
+- Green (80%+): Excellent
+- Light green (60-79%): Good
+- Yellow (40-59%): Average
+- Red (<40%): Low
+
+### Instructor Performance
+Shows each instructor's:
+- Number of classes taught
+- Total bookings across all their classes
+- Overall attendance rate
+
+## Tech Stack
+
+- **Backend**: Node.js + Express
+- **Frontend**: Vanilla JS + Chart.js
+- **Database**: Supabase (PostgreSQL)
+- **External API**: Zoezi gym management platform
+
+## Repository Structure
+
+```
+grouptraining-analytics/
+├── index.js                    # Express server with API routes
+├── public/
+│   └── index.html              # Full frontend application
+├── package.json                # Dependencies
+├── .replit                     # Replit configuration
+├── Zoezi API docs.json         # API reference
+├── dateextensions.js           # Date utilities
+├── docs/                       # Zoezi documentation
+└── README.md                   # This file
+```
+
+## License
+
+MIT

@@ -1,7 +1,7 @@
 {
-  "name": "zoezi-app-starter",
+  "name": "grouptraining-analytics",
   "version": "1.0.0",
-  "description": "Starter template for building apps with the Zoezi gym membership platform API",
+  "description": "Analytics dashboard for Zoezi group training classes - attendance rates, trends, and performance metrics",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -11,12 +11,14 @@
     "zoezi",
     "gym",
     "fitness",
-    "api",
-    "starter"
+    "analytics",
+    "group-training",
+    "attendance"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "@supabase/supabase-js": "^2.39.0"
   }
 }
