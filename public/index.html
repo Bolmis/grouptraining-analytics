@@ -966,7 +966,7 @@
                       <span class="text-sm text-gray-700">All facilities</span>
                     </div>
                     ${allFacilities.map(f => `
-                      <div class="dropdown-item facility-item ${selectedFacility === f.id ? 'selected' : ''}" onclick="selectFacility('${f.id}'); closeFacilityDropdown();">
+                      <div class="dropdown-item facility-item ${selectedFacility === f.id ? 'selected' : ''}" onclick="selectFacility(${f.id}); closeFacilityDropdown();">
                         <span class="text-sm text-gray-700">${f.name}</span>
                       </div>
                     `).join('')}
@@ -1066,7 +1066,7 @@
                     <span class="text-sm text-gray-700">All facilities</span>
                   </div>
                   ${allFacilities.map(f => `
-                    <div class="dropdown-item facility-item ${selectedFacility === f.id ? 'selected' : ''}" onclick="selectFacility('${f.id}'); closeFacilityDropdown();">
+                    <div class="dropdown-item facility-item ${selectedFacility === f.id ? 'selected' : ''}" onclick="selectFacility(${f.id}); closeFacilityDropdown();">
                       <span class="text-sm text-gray-700">${f.name}</span>
                     </div>
                   `).join('')}
