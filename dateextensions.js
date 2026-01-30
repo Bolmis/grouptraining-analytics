@@ -1,5 +1,9 @@
 'use strict';
-import {isDate} from 'lodash';
+
+// Helper function to check if value is a Date object
+function isDate(value) {
+  return value instanceof Date && !isNaN(value);
+}
 
 Date.prototype.yyyymmdd = function() {
     var yyyy = this.getFullYear().toString();
