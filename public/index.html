@@ -1078,18 +1078,21 @@
         <!-- Instructor Performance -->
         ${byInstructor.length > 0 ? `
           <div class="bg-white rounded-2xl p-6 card-shadow">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Instructor Performance</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              ${byInstructor.slice(0, 12).map((inst) => `
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">Instructor Performance</h3>
+              <span class="text-sm text-gray-500">${byInstructor.length} instructors</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto pr-2" style="scrollbar-width: thin; scrollbar-color: #AFACFB #f3f4f6;">
+              ${byInstructor.map((inst) => `
                 <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div class="w-12 h-12 gradient-bg rounded-full flex items-center justify-center text-white font-bold text-lg">
+                  <div class="w-12 h-12 gradient-bg rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                     ${inst.name.charAt(0)}
                   </div>
                   <div class="flex-1 min-w-0">
                     <p class="font-semibold text-gray-900 truncate">${inst.name}</p>
                     <p class="text-sm text-gray-500">${inst.classes} classes · ${inst.totalBooked} bookings</p>
                   </div>
-                  <div class="text-right">
+                  <div class="text-right flex-shrink-0">
                     <p class="text-xl font-bold text-gray-900">${inst.attendanceRate}%</p>
                   </div>
                 </div>
