@@ -7,3 +7,6 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "npm start"]
+
+[agent]
+expertMode = true
