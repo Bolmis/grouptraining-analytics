@@ -172,6 +172,68 @@
       color: #6b5ce7;
       font-weight: 500;
     }
+
+    /* Tooltip styles */
+    .info-tooltip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      cursor: help;
+      margin-left: 4px;
+    }
+    .info-tooltip .info-icon {
+      width: 14px;
+      height: 14px;
+      color: #9ca3af;
+      transition: color 0.15s;
+    }
+    .info-tooltip:hover .info-icon {
+      color: #6b7280;
+    }
+    .info-tooltip .tooltip-text {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 400;
+      padding: 8px 12px;
+      border-radius: 8px;
+      white-space: nowrap;
+      z-index: 100;
+      transition: opacity 0.15s, visibility 0.15s;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      max-width: 280px;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .info-tooltip .tooltip-text::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+    }
+    .info-tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    /* Table header tooltips - position to the right */
+    th .info-tooltip .tooltip-text {
+      left: 0;
+      transform: translateX(0);
+    }
+    th .info-tooltip .tooltip-text::after {
+      left: 12px;
+      transform: translateX(0);
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -297,6 +359,7 @@
     let selectedInstructor = null;  // Selected instructor name (null = all)
     let selectedFacility = null;  // Selected facility/site ID (null = all)
     let allFacilities = [];   // All available facilities/sites
+    let isClassFilterOpen = false;  // Track dropdown open state
     let config = {
       isIframeMode: false,
       presetClubId: null,
@@ -511,16 +574,46 @@
 
         if (rawAnalytics.error) throw new Error(rawAnalytics.error);
 
+        // Store previous filter state
+        const previousClassTypes = new Set(selectedClassTypes);
+        const previousInstructor = selectedInstructor;
+        const previousFacility = selectedFacility;
+
         // Extract all class types for the filter
-        allClassTypes = rawAnalytics.byType.map(t => ({ name: t.name, color: t.color }));
+        const newClassTypes = rawAnalytics.byType.map(t => ({ name: t.name, color: t.color }));
+        const newClassTypeNames = new Set(newClassTypes.map(t => t.name));
 
         // Extract facilities (only if more than 1)
         allFacilities = rawAnalytics.sites || [];
 
-        // Reset filters to default
-        selectedClassTypes = new Set(allClassTypes.map(t => t.name));
-        selectedInstructor = null;
-        selectedFacility = null;
+        // Preserve filters: keep selected types that still exist in new data
+        if (previousClassTypes.size > 0 && allClassTypes.length > 0) {
+          // Filter was previously set - preserve selections that still exist
+          selectedClassTypes = new Set(
+            [...previousClassTypes].filter(name => newClassTypeNames.has(name))
+          );
+          // If all previous selections are gone, select all new types
+          if (selectedClassTypes.size === 0) {
+            selectedClassTypes = new Set(newClassTypeNames);
+          }
+        } else {
+          // First load or no previous filter - select all
+          selectedClassTypes = new Set(newClassTypeNames);
+        }
+
+        allClassTypes = newClassTypes;
+
+        // Preserve instructor filter if instructor still exists in new data
+        if (previousInstructor) {
+          const instructorExists = rawAnalytics.byInstructor?.some(i => i.name === previousInstructor);
+          selectedInstructor = instructorExists ? previousInstructor : null;
+        }
+
+        // Preserve facility filter if facility still exists
+        if (previousFacility) {
+          const facilityExists = allFacilities.some(f => f.id === previousFacility);
+          selectedFacility = facilityExists ? previousFacility : null;
+        }
 
         // Apply filter and render
         applyFilters();
@@ -598,6 +691,10 @@
       let fullyBookedClasses = 0;
       let emptyClasses = 0;
 
+      // Track unique users
+      const allUniqueUsers = new Set();
+      const uniqueUsersByType = {};
+
       filteredWorkouts.forEach(w => {
         const typeName = w.typeName;
         const space = w.space || 0;
@@ -624,11 +721,20 @@
             totalCapacity: 0,
             bookings: []
           };
+          uniqueUsersByType[typeName] = new Set();
         }
         byType[typeName].classes++;
         byType[typeName].totalBooked += booked;
         byType[typeName].totalCapacity += space;
         byType[typeName].bookings.push(space > 0 ? (booked / space * 100) : 0);
+
+        // Track unique users
+        if (w.userIds && Array.isArray(w.userIds)) {
+          w.userIds.forEach(userId => {
+            allUniqueUsers.add(userId);
+            uniqueUsersByType[typeName].add(userId);
+          });
+        }
 
         // By day of week
         byDayOfWeek[dayOfWeek].push({
@@ -680,7 +786,8 @@
         attendanceRate: t.totalCapacity > 0 ? (t.totalBooked / t.totalCapacity * 100).toFixed(1) : 0,
         avgBookingRate: t.bookings.length > 0
           ? (t.bookings.reduce((a, b) => a + b, 0) / t.bookings.length).toFixed(1)
-          : 0
+          : 0,
+        uniqueParticipants: uniqueUsersByType[t.name]?.size || 0
       })).sort((a, b) => parseFloat(b.attendanceRate) - parseFloat(a.attendanceRate));
 
       // Calculate day stats
@@ -742,7 +849,8 @@
           fullyBookedClasses,
           fullyBookedRate: totalClasses > 0 ? (fullyBookedClasses / totalClasses * 100).toFixed(1) : 0,
           emptyClasses,
-          emptyRate: totalClasses > 0 ? (emptyClasses / totalClasses * 100).toFixed(1) : 0
+          emptyRate: totalClasses > 0 ? (emptyClasses / totalClasses * 100).toFixed(1) : 0,
+          uniqueParticipants: allUniqueUsers.size
         },
         byType: typeStats,
         byDay: dayStats,
@@ -758,6 +866,8 @@
       } else {
         selectedClassTypes.add(typeName);
       }
+      // Remember dropdown was open
+      isClassFilterOpen = true;
       updateFilterDropdown();
       applyFilters();
       renderDashboard();
@@ -765,6 +875,8 @@
 
     function selectAllClassTypes() {
       selectedClassTypes = new Set(allClassTypes.map(t => t.name));
+      // Remember dropdown was open
+      isClassFilterOpen = true;
       updateFilterDropdown();
       applyFilters();
       renderDashboard();
@@ -772,6 +884,8 @@
 
     function clearAllClassTypes() {
       selectedClassTypes.clear();
+      // Remember dropdown was open
+      isClassFilterOpen = true;
       updateFilterDropdown();
       applyFilters();
       renderDashboard();
@@ -830,8 +944,9 @@
       const dropdown = document.getElementById('class-type-filter');
       if (dropdown) {
         dropdown.classList.toggle('open');
+        isClassFilterOpen = dropdown.classList.contains('open');
         // Clear search and show all when opening
-        if (dropdown.classList.contains('open')) {
+        if (isClassFilterOpen) {
           const searchInput = dropdown.querySelector('input[type="text"]');
           if (searchInput) {
             searchInput.value = '';
@@ -890,6 +1005,7 @@
       const dropdown = document.getElementById('class-type-filter');
       if (dropdown && !dropdown.contains(e.target)) {
         dropdown.classList.remove('open');
+        isClassFilterOpen = false;
       }
     });
 
@@ -1108,10 +1224,19 @@
         ` : ''}
 
         <!-- Summary Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <!-- Main KPI -->
           <div class="col-span-2 md:col-span-1 gradient-bg rounded-2xl p-6 text-white card-shadow-lg">
-            <p class="text-white/80 text-sm font-medium mb-1">Attendance Rate</p>
+            <p class="text-white/80 text-sm font-medium mb-1 flex items-center">
+              Attendance Rate
+              <span class="info-tooltip">
+                <svg class="info-icon" style="color: rgba(255,255,255,0.6)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 16v-4m0-4h.01"/>
+                </svg>
+                <span class="tooltip-text">Percentage of available spots that were booked: (Total Bookings ÷ Total Capacity) × 100</span>
+              </span>
+            </p>
             <p class="text-4xl font-bold">${summary.overallAttendanceRate}%</p>
             <p class="text-white/60 text-sm mt-1">${summary.totalBooked} / ${summary.totalCapacity} spots</p>
           </div>
@@ -1123,22 +1248,42 @@
           </div>
 
           <div class="bg-white rounded-2xl p-5 card-shadow">
-            <p class="text-gray-500 text-sm font-medium mb-1">Avg per Class</p>
-            <p class="text-3xl font-bold text-gray-900">${summary.avgPerClass}</p>
-            <p class="text-gray-400 text-sm">participants</p>
+            <p class="text-gray-500 text-sm font-medium mb-1 flex items-center">
+              Total Bookings
+              ${tooltip('Total number of spots booked across all classes in the selected period')}
+            </p>
+            <p class="text-3xl font-bold text-gray-900">${summary.totalBooked}</p>
+            <p class="text-gray-400 text-sm">${summary.avgPerClass} avg per class</p>
           </div>
 
           <div class="bg-white rounded-2xl p-5 card-shadow">
-            <p class="text-gray-500 text-sm font-medium mb-1">Fully Booked</p>
+            <p class="text-gray-500 text-sm font-medium mb-1 flex items-center">
+              Fully Booked
+              ${tooltip('Classes where the number of bookings equals the class capacity (100% full)')}
+            </p>
             <p class="text-3xl font-bold text-emerald-600">${summary.fullyBookedClasses}</p>
             <p class="text-gray-400 text-sm">${summary.fullyBookedRate}% of classes</p>
           </div>
 
           <div class="bg-white rounded-2xl p-5 card-shadow">
-            <p class="text-gray-500 text-sm font-medium mb-1">Empty Classes</p>
+            <p class="text-gray-500 text-sm font-medium mb-1 flex items-center">
+              Empty Classes
+              ${tooltip('Classes with zero bookings')}
+            </p>
             <p class="text-3xl font-bold text-red-500">${summary.emptyClasses}</p>
             <p class="text-gray-400 text-sm">${summary.emptyRate}% of classes</p>
           </div>
+
+          ${summary.uniqueParticipants > 0 ? `
+          <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm font-medium mb-1 flex items-center">
+              Unique Participants
+              ${tooltip('Count of distinct members who made bookings. Lower unique vs total bookings indicates repeat attendance.')}
+            </p>
+            <p class="text-3xl font-bold text-indigo-600">${summary.uniqueParticipants}</p>
+            <p class="text-gray-400 text-sm">${summary.totalBooked > 0 ? (summary.totalBooked / summary.uniqueParticipants).toFixed(1) : 0} bookings/person</p>
+          </div>
+          ` : ''}
         </div>
 
         <!-- Charts Grid -->
@@ -1177,7 +1322,10 @@
 
           <!-- Distribution -->
           <div class="bg-white rounded-2xl p-6 card-shadow">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Class Distribution</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              Class Distribution
+              ${tooltip('How classes are distributed across types (by count of classes held)')}
+            </h3>
             <div class="h-72">
               <canvas id="distribution-chart"></canvas>
             </div>
@@ -1194,8 +1342,24 @@
                   <th class="pb-3 pr-4">#</th>
                   <th class="pb-3 pr-4">Class Type</th>
                   <th class="pb-3 pr-4 text-center">Classes</th>
-                  <th class="pb-3 pr-4 text-center">Bookings</th>
-                  <th class="pb-3 pr-4 text-center">Avg</th>
+                  <th class="pb-3 pr-4 text-center">
+                    <span class="inline-flex items-center">
+                      Bookings
+                      ${tooltip('Total bookings for this class type')}
+                    </span>
+                  </th>
+                  <th class="pb-3 pr-4 text-center">
+                    <span class="inline-flex items-center">
+                      Unique
+                      ${tooltip('Distinct members who booked. Lower unique vs bookings = more repeat attendance.')}
+                    </span>
+                  </th>
+                  <th class="pb-3 pr-4 text-center">
+                    <span class="inline-flex items-center">
+                      Avg
+                      ${tooltip('Average participants per class session')}
+                    </span>
+                  </th>
                   <th class="pb-3 pr-4 text-right">Rate</th>
                   <th class="pb-3 w-32">Performance</th>
                 </tr>
@@ -1212,6 +1376,7 @@
                     </td>
                     <td class="py-3 pr-4 text-center text-gray-600">${t.classes}</td>
                     <td class="py-3 pr-4 text-center text-gray-600">${t.totalBooked}</td>
+                    <td class="py-3 pr-4 text-center text-gray-600">${t.uniqueParticipants || '-'}</td>
                     <td class="py-3 pr-4 text-center text-gray-600">${t.avgAttendance}</td>
                     <td class="py-3 pr-4 text-right font-semibold text-gray-900">${t.attendanceRate}%</td>
                     <td class="py-3">
@@ -1272,6 +1437,16 @@
 
       // Render charts
       renderCharts();
+
+      // Restore dropdown open state after render
+      if (isClassFilterOpen) {
+        requestAnimationFrame(() => {
+          const dropdown = document.getElementById('class-type-filter');
+          if (dropdown) {
+            dropdown.classList.add('open');
+          }
+        });
+      }
     }
 
     function getProgressClass(rate) {
@@ -1279,6 +1454,17 @@
       if (rate >= 60) return 'progress-good';
       if (rate >= 40) return 'progress-average';
       return 'progress-low';
+    }
+
+    // Tooltip helper
+    function tooltip(text) {
+      return `<span class="info-tooltip">
+        <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4m0-4h.01"/>
+        </svg>
+        <span class="tooltip-text">${text}</span>
+      </span>`;
     }
 
     // ==========================================================================

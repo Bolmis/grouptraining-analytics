@@ -201,6 +201,10 @@ function processAnalytics(workouts) {
   let fullyBookedClasses = 0;
   let emptyClasses = 0;
 
+  // Track unique users globally and per type
+  const allUniqueUsers = new Set();
+  const uniqueUsersByType = {};
+
   workouts.forEach(w => {
     const typeName = w.workoutType?.name || 'Unknown';
     const space = w.space || 0;
@@ -227,11 +231,23 @@ function processAnalytics(workouts) {
         totalCapacity: 0,
         bookings: []
       };
+      uniqueUsersByType[typeName] = new Set();
     }
     byType[typeName].classes++;
     byType[typeName].totalBooked += booked;
     byType[typeName].totalCapacity += space;
     byType[typeName].bookings.push(space > 0 ? (booked / space * 100) : 0);
+
+    // Extract unique user IDs from bookings
+    if (w.bookings && Array.isArray(w.bookings)) {
+      w.bookings.forEach(booking => {
+        const userId = booking.user_id || booking.userId || booking.user?.id;
+        if (userId) {
+          allUniqueUsers.add(userId);
+          uniqueUsersByType[typeName].add(userId);
+        }
+      });
+    }
 
     // By day of week
     byDayOfWeek[dayOfWeek].push({
@@ -283,7 +299,8 @@ function processAnalytics(workouts) {
     attendanceRate: t.totalCapacity > 0 ? (t.totalBooked / t.totalCapacity * 100).toFixed(1) : 0,
     avgBookingRate: t.bookings.length > 0
       ? (t.bookings.reduce((a, b) => a + b, 0) / t.bookings.length).toFixed(1)
-      : 0
+      : 0,
+    uniqueParticipants: uniqueUsersByType[t.name]?.size || 0
   })).sort((a, b) => parseFloat(b.attendanceRate) - parseFloat(a.attendanceRate));
 
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -341,7 +358,8 @@ function processAnalytics(workouts) {
       fullyBookedClasses,
       fullyBookedRate: totalClasses > 0 ? (fullyBookedClasses / totalClasses * 100).toFixed(1) : 0,
       emptyClasses,
-      emptyRate: totalClasses > 0 ? (emptyClasses / totalClasses * 100).toFixed(1) : 0
+      emptyRate: totalClasses > 0 ? (emptyClasses / totalClasses * 100).toFixed(1) : 0,
+      uniqueParticipants: allUniqueUsers.size
     },
     byType: typeStats,
     byDay: dayStats,
@@ -622,20 +640,31 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
     analytics.sites = sitesList.length > 1 ? sitesList : [];
 
     // Include simplified raw workouts for client-side filtering
-    analytics.rawWorkouts = workouts.map(w => ({
-      id: w.id,
-      typeName: w.workoutType?.name || 'Unknown',
-      typeColor: w.workoutType?.color || '#667eea',
-      startTime: w.startTime,
-      space: w.space || 0,
-      numBooked: w.numBooked || 0,
-      siteId: w.site_id || w.siteId || null,
-      siteName: siteMap[w.site_id] || siteMap[w.siteId] || null,
-      staffs: (w.staffs || []).map(s => ({
-        name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
-        imagekey: s.imagekey
-      }))
-    }));
+    analytics.rawWorkouts = workouts.map(w => {
+      // Extract user IDs from bookings
+      const userIds = [];
+      if (w.bookings && Array.isArray(w.bookings)) {
+        w.bookings.forEach(booking => {
+          const userId = booking.user_id || booking.userId || booking.user?.id;
+          if (userId) userIds.push(userId);
+        });
+      }
+      return {
+        id: w.id,
+        typeName: w.workoutType?.name || 'Unknown',
+        typeColor: w.workoutType?.color || '#667eea',
+        startTime: w.startTime,
+        space: w.space || 0,
+        numBooked: w.numBooked || 0,
+        siteId: w.site_id || w.siteId || null,
+        siteName: siteMap[w.site_id] || siteMap[w.siteId] || null,
+        staffs: (w.staffs || []).map(s => ({
+          name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
+          imagekey: s.imagekey
+        })),
+        userIds: userIds
+      };
+    });
 
     res.json(analytics);
   } catch (error) {
@@ -819,20 +848,31 @@ app.get('/api/embed/analytics', async (req, res) => {
     analytics.sites = sitesList.length > 1 ? sitesList : [];
 
     // Include simplified raw workouts for client-side filtering
-    analytics.rawWorkouts = workouts.map(w => ({
-      id: w.id,
-      typeName: w.workoutType?.name || 'Unknown',
-      typeColor: w.workoutType?.color || '#667eea',
-      startTime: w.startTime,
-      space: w.space || 0,
-      numBooked: w.numBooked || 0,
-      siteId: w.site_id || w.siteId || null,
-      siteName: siteMap[w.site_id] || siteMap[w.siteId] || null,
-      staffs: (w.staffs || []).map(s => ({
-        name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
-        imagekey: s.imagekey
-      }))
-    }));
+    analytics.rawWorkouts = workouts.map(w => {
+      // Extract user IDs from bookings
+      const userIds = [];
+      if (w.bookings && Array.isArray(w.bookings)) {
+        w.bookings.forEach(booking => {
+          const userId = booking.user_id || booking.userId || booking.user?.id;
+          if (userId) userIds.push(userId);
+        });
+      }
+      return {
+        id: w.id,
+        typeName: w.workoutType?.name || 'Unknown',
+        typeColor: w.workoutType?.color || '#667eea',
+        startTime: w.startTime,
+        space: w.space || 0,
+        numBooked: w.numBooked || 0,
+        siteId: w.site_id || w.siteId || null,
+        siteName: siteMap[w.site_id] || siteMap[w.siteId] || null,
+        staffs: (w.staffs || []).map(s => ({
+          name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
+          imagekey: s.imagekey
+        })),
+        userIds: userIds
+      };
+    });
 
     res.json(analytics);
   } catch (error) {
