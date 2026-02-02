@@ -184,11 +184,21 @@
     .info-tooltip .info-icon {
       width: 14px;
       height: 14px;
-      color: #9ca3af;
-      transition: color 0.15s;
+      border-radius: 50%;
+      background: #d1d5db;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      font-style: italic;
+      font-family: Georgia, serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.15s;
     }
     .info-tooltip:hover .info-icon {
-      color: #6b7280;
+      background: #9ca3af;
     }
     .info-tooltip .tooltip-text {
       visibility: hidden;
@@ -207,7 +217,8 @@
       z-index: 100;
       transition: opacity 0.15s, visibility 0.15s;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      max-width: 280px;
+      min-width: 220px;
+      max-width: 360px;
       white-space: normal;
       text-align: center;
       line-height: 1.4;
@@ -1230,10 +1241,7 @@
             <p class="text-white/80 text-sm font-medium mb-1 flex items-center">
               Attendance Rate
               <span class="info-tooltip">
-                <svg class="info-icon" style="color: rgba(255,255,255,0.6)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M12 16v-4m0-4h.01"/>
-                </svg>
+                <span class="info-icon" style="background: rgba(255,255,255,0.4)">i</span>
                 <span class="tooltip-text">Percentage of available spots that were booked: (Total Bookings ÷ Total Capacity) × 100</span>
               </span>
             </p>
@@ -1459,10 +1467,7 @@
     // Tooltip helper
     function tooltip(text) {
       return `<span class="info-tooltip">
-        <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 16v-4m0-4h.01"/>
-        </svg>
+        <span class="info-icon">i</span>
         <span class="tooltip-text">${text}</span>
       </span>`;
     }
