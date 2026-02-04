@@ -611,37 +611,19 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
       return res.status(404).json({ error: 'Club not found' });
     }
 
-    // Fetch workout schedule, sites, training card types, and all training cards from Zoezi in parallel
+    // Fetch workout schedule and sites from Zoezi in parallel
     const workoutUrl = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
     const sitesUrl = `https://${club.Zoezi_Domain}/api/site/get/all`;
-    const trainingCardTypesUrl = `https://${club.Zoezi_Domain}/api/trainingcard/type/get/all`;
-    const trainingCardsUrl = `https://${club.Zoezi_Domain}/api/trainingcard/get/all`;
 
-    const [workouts, sites, trainingCardTypes, trainingCards] = await Promise.all([
+    const [workouts, sites] = await Promise.all([
       fetchZoeziApi(workoutUrl, club.Zoezi_Api_Key),
-      fetchZoeziApi(sitesUrl, club.Zoezi_Api_Key).catch(() => []),
-      fetchZoeziApi(trainingCardTypesUrl, club.Zoezi_Api_Key).catch(() => []),
-      fetchZoeziApi(trainingCardsUrl, club.Zoezi_Api_Key).catch(() => [])
+      fetchZoeziApi(sitesUrl, club.Zoezi_Api_Key).catch(() => [])
     ]);
 
     // Create site lookup map
     const siteMap = {};
     (sites || []).forEach(s => {
       if (s && s.id) siteMap[s.id] = s.name;
-    });
-
-    // Create training card type lookup map
-    const trainingCardTypeMap = {};
-    (trainingCardTypes || []).forEach(t => {
-      if (t && t.id) trainingCardTypeMap[t.id] = t.name;
-    });
-
-    // Create training card instance to type ID mapping
-    const trainingCardToTypeMap = {};
-    (trainingCards || []).forEach(card => {
-      if (card && card.id && card.type_id) {
-        trainingCardToTypeMap[card.id] = card.type_id;
-      }
     });
 
     // Process analytics
@@ -657,26 +639,14 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
     const sitesList = (sites || []).filter(s => s && !s.removed).map(s => ({ id: s.id, name: s.name }));
     analytics.sites = sitesList.length > 1 ? sitesList : [];
 
-    // Include training card types list
-    analytics.trainingCardTypes = (trainingCardTypes || []).filter(t => t && t.id).map(t => ({
-      id: t.id,
-      name: t.name
-    }));
-
     // Include simplified raw workouts for client-side filtering
     analytics.rawWorkouts = workouts.map(w => {
-      // Extract booking details for filtering
-      const bookingDetails = [];
+      // Extract user IDs from bookings
+      const userIds = [];
       if (w.bookings && Array.isArray(w.bookings)) {
         w.bookings.forEach(booking => {
           const userId = booking.user_id || booking.userId || booking.user?.id;
-          let trainingCardTypeId = null;
-          if (booking.trainingcard) {
-            trainingCardTypeId = trainingCardToTypeMap[booking.trainingcard] || null;
-          }
-          if (userId) {
-            bookingDetails.push({ userId, trainingCardTypeId });
-          }
+          if (userId) userIds.push(userId);
         });
       }
       return {
@@ -692,7 +662,7 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
           name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
           imagekey: s.imagekey
         })),
-        bookingDetails: bookingDetails
+        userIds: userIds
       };
     });
 
@@ -849,37 +819,19 @@ app.get('/api/embed/analytics', async (req, res) => {
       return res.status(404).json({ error: 'Club not found' });
     }
 
-    // Fetch workout schedule, sites, training card types, and all training cards from Zoezi in parallel
+    // Fetch workout schedule and sites from Zoezi in parallel
     const workoutUrl = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
     const sitesUrl = `https://${club.Zoezi_Domain}/api/site/get/all`;
-    const trainingCardTypesUrl = `https://${club.Zoezi_Domain}/api/trainingcard/type/get/all`;
-    const trainingCardsUrl = `https://${club.Zoezi_Domain}/api/trainingcard/get/all`;
 
-    const [workouts, sites, trainingCardTypes, trainingCards] = await Promise.all([
+    const [workouts, sites] = await Promise.all([
       fetchZoeziApi(workoutUrl, club.Zoezi_Api_Key),
-      fetchZoeziApi(sitesUrl, club.Zoezi_Api_Key).catch(() => []),
-      fetchZoeziApi(trainingCardTypesUrl, club.Zoezi_Api_Key).catch(() => []),
-      fetchZoeziApi(trainingCardsUrl, club.Zoezi_Api_Key).catch(() => [])
+      fetchZoeziApi(sitesUrl, club.Zoezi_Api_Key).catch(() => [])
     ]);
 
     // Create site lookup map
     const siteMap = {};
     (sites || []).forEach(s => {
       if (s && s.id) siteMap[s.id] = s.name;
-    });
-
-    // Create training card type lookup map
-    const trainingCardTypeMap = {};
-    (trainingCardTypes || []).forEach(t => {
-      if (t && t.id) trainingCardTypeMap[t.id] = t.name;
-    });
-
-    // Create training card instance to type ID mapping
-    const trainingCardToTypeMap = {};
-    (trainingCards || []).forEach(card => {
-      if (card && card.id && card.type_id) {
-        trainingCardToTypeMap[card.id] = card.type_id;
-      }
     });
 
     // Process analytics
@@ -895,26 +847,14 @@ app.get('/api/embed/analytics', async (req, res) => {
     const sitesList = (sites || []).filter(s => s && !s.removed).map(s => ({ id: s.id, name: s.name }));
     analytics.sites = sitesList.length > 1 ? sitesList : [];
 
-    // Include training card types list
-    analytics.trainingCardTypes = (trainingCardTypes || []).filter(t => t && t.id).map(t => ({
-      id: t.id,
-      name: t.name
-    }));
-
     // Include simplified raw workouts for client-side filtering
     analytics.rawWorkouts = workouts.map(w => {
-      // Extract booking details for filtering
-      const bookingDetails = [];
+      // Extract user IDs from bookings
+      const userIds = [];
       if (w.bookings && Array.isArray(w.bookings)) {
         w.bookings.forEach(booking => {
           const userId = booking.user_id || booking.userId || booking.user?.id;
-          let trainingCardTypeId = null;
-          if (booking.trainingcard) {
-            trainingCardTypeId = trainingCardToTypeMap[booking.trainingcard] || null;
-          }
-          if (userId) {
-            bookingDetails.push({ userId, trainingCardTypeId });
-          }
+          if (userId) userIds.push(userId);
         });
       }
       return {
@@ -930,7 +870,7 @@ app.get('/api/embed/analytics', async (req, res) => {
           name: `${s.firstname || ''} ${s.lastname || ''}`.trim() || 'Unknown',
           imagekey: s.imagekey
         })),
-        bookingDetails: bookingDetails
+        userIds: userIds
       };
     });
 

@@ -370,10 +370,7 @@
     let selectedInstructor = null;  // Selected instructor name (null = all)
     let selectedFacility = null;  // Selected facility/site ID (null = all)
     let allFacilities = [];   // All available facilities/sites
-    let selectedTrainingCardTypes = new Set();  // Selected training card type IDs
-    let allTrainingCardTypes = [];  // All available training card types
     let isClassFilterOpen = false;  // Track dropdown open state
-    let isTrainingCardFilterOpen = false;  // Track training card dropdown open state
     let config = {
       isIframeMode: false,
       presetClubId: null,
@@ -592,7 +589,6 @@
         const previousClassTypes = new Set(selectedClassTypes);
         const previousInstructor = selectedInstructor;
         const previousFacility = selectedFacility;
-        const previousTrainingCardTypes = new Set(selectedTrainingCardTypes);
 
         // Extract all class types for the filter
         const newClassTypes = rawAnalytics.byType.map(t => ({ name: t.name, color: t.color }));
@@ -600,10 +596,6 @@
 
         // Extract facilities (only if more than 1)
         allFacilities = rawAnalytics.sites || [];
-
-        // Extract training card types
-        const newTrainingCardTypes = rawAnalytics.trainingCardTypes || [];
-        const newTrainingCardTypeIds = new Set(newTrainingCardTypes.map(t => t.id));
 
         // Preserve filters: keep selected types that still exist in new data
         if (previousClassTypes.size > 0 && allClassTypes.length > 0) {
@@ -621,20 +613,6 @@
         }
 
         allClassTypes = newClassTypes;
-
-        // Preserve training card type filter if types still exist
-        if (previousTrainingCardTypes.size > 0 && allTrainingCardTypes.length > 0) {
-          selectedTrainingCardTypes = new Set(
-            [...previousTrainingCardTypes].filter(id => newTrainingCardTypeIds.has(id))
-          );
-          if (selectedTrainingCardTypes.size === 0) {
-            selectedTrainingCardTypes = new Set(newTrainingCardTypeIds);
-          }
-        } else {
-          selectedTrainingCardTypes = new Set(newTrainingCardTypeIds);
-        }
-
-        allTrainingCardTypes = newTrainingCardTypes;
 
         // Preserve instructor filter if instructor still exists in new data
         if (previousInstructor) {
@@ -686,17 +664,13 @@
     function applyFilters() {
       if (!rawAnalytics || !rawAnalytics.rawWorkouts) return;
 
-      // Check if training card filter is active
-      const trainingCardFilterActive = allTrainingCardTypes.length > 0 && selectedTrainingCardTypes.size < allTrainingCardTypes.length;
-
       // If no filters active, just use raw data
-      if (selectedClassTypes.size === allClassTypes.length && !selectedInstructor && !selectedFacility && !trainingCardFilterActive) {
+      if (selectedClassTypes.size === allClassTypes.length && !selectedInstructor && !selectedFacility) {
         analytics = { ...rawAnalytics };
         return;
       }
 
       // Filter raw workouts by selected class types, instructor, AND facility
-      // Also filter bookings by training card type if that filter is active
       const filteredWorkouts = rawAnalytics.rawWorkouts.filter(w => {
         // Class type filter
         if (!selectedClassTypes.has(w.typeName)) return false;
@@ -712,21 +686,7 @@
           if (w.siteId !== selectedFacility) return false;
         }
 
-        // Training card type filter - only include workouts that have at least one matching booking
-        if (trainingCardFilterActive) {
-          if (!w.bookingDetails || w.bookingDetails.length === 0) return false;
-          const hasMatchingBooking = w.bookingDetails.some(b => b.trainingCardTypeId && selectedTrainingCardTypes.has(b.trainingCardTypeId));
-          if (!hasMatchingBooking) return false;
-        }
-
         return true;
-      }).map(w => {
-        // If training card filter is active, filter the booking details and adjust count
-        if (trainingCardFilterActive && w.bookingDetails && w.bookingDetails.length > 0) {
-          const filteredBookings = w.bookingDetails.filter(b => b.trainingCardTypeId && selectedTrainingCardTypes.has(b.trainingCardTypeId));
-          return { ...w, numBooked: filteredBookings.length, filteredBookingDetails: filteredBookings };
-        }
-        return { ...w, filteredBookingDetails: w.bookingDetails };
       });
 
       // Recalculate everything from filtered workouts
@@ -779,14 +739,13 @@
         byType[typeName].totalCapacity += space;
         byType[typeName].bookings.push(space > 0 ? (booked / space * 100) : 0);
 
-        // Track unique users (use filtered bookings if available)
-        const bookingsToUse = w.filteredBookingDetails || w.bookingDetails || [];
-        bookingsToUse.forEach(b => {
-          if (b.userId) {
-            allUniqueUsers.add(b.userId);
-            uniqueUsersByType[typeName].add(b.userId);
-          }
-        });
+        // Track unique users
+        if (w.userIds && Array.isArray(w.userIds)) {
+          w.userIds.forEach(userId => {
+            allUniqueUsers.add(userId);
+            uniqueUsersByType[typeName].add(userId);
+          });
+        }
 
         // By day of week
         byDayOfWeek[dayOfWeek].push({
@@ -1008,101 +967,6 @@
       }
     }
 
-    // Training Card Type Filter Functions
-    function toggleTrainingCardType(typeId) {
-      if (selectedTrainingCardTypes.has(typeId)) {
-        selectedTrainingCardTypes.delete(typeId);
-      } else {
-        selectedTrainingCardTypes.add(typeId);
-      }
-      isTrainingCardFilterOpen = true;
-      updateTrainingCardFilterDropdown();
-      applyFilters();
-      renderDashboard();
-    }
-
-    function selectAllTrainingCardTypes() {
-      selectedTrainingCardTypes = new Set(allTrainingCardTypes.map(t => t.id));
-      isTrainingCardFilterOpen = true;
-      updateTrainingCardFilterDropdown();
-      applyFilters();
-      renderDashboard();
-    }
-
-    function clearAllTrainingCardTypes() {
-      selectedTrainingCardTypes.clear();
-      isTrainingCardFilterOpen = true;
-      updateTrainingCardFilterDropdown();
-      applyFilters();
-      renderDashboard();
-    }
-
-    function toggleTrainingCardFilterDropdown() {
-      const dropdown = document.getElementById('training-card-filter');
-      if (dropdown) {
-        dropdown.classList.toggle('open');
-        isTrainingCardFilterOpen = dropdown.classList.contains('open');
-        if (isTrainingCardFilterOpen) {
-          const searchInput = dropdown.querySelector('input[type="text"]');
-          if (searchInput) {
-            searchInput.value = '';
-            filterTrainingCardDropdown('');
-          }
-        }
-      }
-    }
-
-    function filterTrainingCardDropdown(searchTerm) {
-      const dropdown = document.getElementById('training-card-filter');
-      if (!dropdown) return;
-
-      const items = dropdown.querySelectorAll('.dropdown-item[data-type-id]');
-      const term = searchTerm.toLowerCase().trim();
-
-      items.forEach(item => {
-        const typeName = item.dataset.typeName.toLowerCase();
-        if (term === '' || typeName.includes(term)) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-    }
-
-    function updateTrainingCardFilterDropdown() {
-      const dropdown = document.getElementById('training-card-filter');
-      if (!dropdown) return;
-
-      const btnText = dropdown.querySelector('.btn-text');
-      const itemsContainer = dropdown.querySelector('.dropdown-items');
-
-      if (selectedTrainingCardTypes.size === 0) {
-        btnText.textContent = 'No memberships selected';
-      } else if (selectedTrainingCardTypes.size === allTrainingCardTypes.length) {
-        btnText.textContent = 'All memberships';
-      } else {
-        btnText.textContent = `${selectedTrainingCardTypes.size} of ${allTrainingCardTypes.length} memberships`;
-      }
-
-      itemsContainer.querySelectorAll('.dropdown-item[data-type-id]').forEach(item => {
-        const typeId = parseInt(item.dataset.typeId);
-        if (selectedTrainingCardTypes.has(typeId)) {
-          item.classList.add('selected');
-        } else {
-          item.classList.remove('selected');
-        }
-      });
-    }
-
-    // Close training card dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      const dropdown = document.getElementById('training-card-filter');
-      if (dropdown && !dropdown.contains(e.target)) {
-        dropdown.classList.remove('open');
-        isTrainingCardFilterOpen = false;
-      }
-    });
-
     function filterClassDropdown(searchTerm) {
       const dropdown = document.getElementById('class-type-filter');
       if (!dropdown) return;
@@ -1210,47 +1074,6 @@
                 </div>
               </div>
 
-              <!-- Training Card Type Filter (Membership Filter) - Empty State -->
-              ${allTrainingCardTypes.length > 0 ? `
-              <div id="training-card-filter" class="multiselect-dropdown">
-                <button type="button" onclick="toggleTrainingCardFilterDropdown()" class="dropdown-btn px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all card-shadow">
-                  <svg class="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="4" width="18" height="14" rx="2" ry="2"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                  <span class="btn-text">${selectedTrainingCardTypes.size === allTrainingCardTypes.length ? 'All memberships' : selectedTrainingCardTypes.size === 0 ? 'No memberships selected' : `${selectedTrainingCardTypes.size} of ${allTrainingCardTypes.length} memberships`}</span>
-                  <svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-                <div class="dropdown-content" style="min-width: 280px;">
-                  <div class="p-2 border-b border-gray-100">
-                    <input type="text" placeholder="Search memberships..." onclick="event.stopPropagation();" oninput="filterTrainingCardDropdown(this.value)" class="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-strongsales-300 focus:border-strongsales-300">
-                  </div>
-                  <div class="p-2 border-b border-gray-100 flex gap-2">
-                    <button onclick="selectAllTrainingCardTypes(); event.stopPropagation();" class="flex-1 px-3 py-1.5 text-xs font-medium text-strongsales-600 bg-strongsales-50 hover:bg-strongsales-100 rounded-lg transition-all">
-                      Select All
-                    </button>
-                    <button onclick="clearAllTrainingCardTypes(); event.stopPropagation();" class="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all">
-                      Clear All
-                    </button>
-                  </div>
-                  <div class="dropdown-items py-1" style="max-height: 250px; overflow-y: auto;">
-                    ${allTrainingCardTypes.map(t => `
-                      <div class="dropdown-item ${selectedTrainingCardTypes.has(t.id) ? 'selected' : ''}" data-type-id="${t.id}" data-type-name="${t.name}" onclick="toggleTrainingCardType(${t.id}); event.stopPropagation();">
-                        <div class="checkbox">
-                          <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <path d="M5 13l4 4L19 7"/>
-                          </svg>
-                        </div>
-                        <span class="text-sm text-gray-700">${t.name}</span>
-                      </div>
-                    `).join('')}
-                  </div>
-                </div>
-              </div>
-              ` : ''}
-
               <!-- Facility Filter Dropdown (only if multiple facilities) -->
               ${allFacilities.length > 1 ? `
               <div class="relative facility-filter">
@@ -1351,47 +1174,6 @@
               </div>
             </div>
 
-            <!-- Training Card Type Filter (Membership Filter) -->
-            ${allTrainingCardTypes.length > 0 ? `
-            <div id="training-card-filter" class="multiselect-dropdown">
-              <button type="button" onclick="toggleTrainingCardFilterDropdown()" class="dropdown-btn px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-all card-shadow">
-                <svg class="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="14" rx="2" ry="2"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <span class="btn-text">${selectedTrainingCardTypes.size === allTrainingCardTypes.length ? 'All memberships' : selectedTrainingCardTypes.size === 0 ? 'No memberships selected' : `${selectedTrainingCardTypes.size} of ${allTrainingCardTypes.length} memberships`}</span>
-                <svg class="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-              <div class="dropdown-content" style="min-width: 280px;">
-                <div class="p-2 border-b border-gray-100">
-                  <input type="text" placeholder="Search memberships..." onclick="event.stopPropagation();" oninput="filterTrainingCardDropdown(this.value)" class="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-strongsales-300 focus:border-strongsales-300">
-                </div>
-                <div class="p-2 border-b border-gray-100 flex gap-2">
-                  <button onclick="selectAllTrainingCardTypes(); event.stopPropagation();" class="flex-1 px-3 py-1.5 text-xs font-medium text-strongsales-600 bg-strongsales-50 hover:bg-strongsales-100 rounded-lg transition-all">
-                    Select All
-                  </button>
-                  <button onclick="clearAllTrainingCardTypes(); event.stopPropagation();" class="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all">
-                    Clear All
-                  </button>
-                </div>
-                <div class="dropdown-items py-1" style="max-height: 250px; overflow-y: auto;">
-                  ${allTrainingCardTypes.map(t => `
-                    <div class="dropdown-item ${selectedTrainingCardTypes.has(t.id) ? 'selected' : ''}" data-type-id="${t.id}" data-type-name="${t.name}" onclick="toggleTrainingCardType(${t.id}); event.stopPropagation();">
-                      <div class="checkbox">
-                        <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                          <path d="M5 13l4 4L19 7"/>
-                        </svg>
-                      </div>
-                      <span class="text-sm text-gray-700">${t.name}</span>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            </div>
-            ` : ''}
-
             <!-- Facility Filter Dropdown (only if multiple facilities) -->
             ${allFacilities.length > 1 ? `
             <div class="relative facility-filter">
@@ -1433,7 +1215,7 @@
         </div>
 
         <!-- Filter Active Notice -->
-        ${(selectedClassTypes.size < allClassTypes.length || selectedInstructor || selectedFacility || (allTrainingCardTypes.length > 0 && selectedTrainingCardTypes.size < allTrainingCardTypes.length)) ? `
+        ${(selectedClassTypes.size < allClassTypes.length || selectedInstructor || selectedFacility) ? `
           <div class="mb-6 px-4 py-3 bg-strongsales-50 border border-strongsales-200 rounded-xl flex flex-wrap items-center gap-3">
             <svg class="w-5 h-5 text-strongsales-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
@@ -1441,14 +1223,12 @@
             <span class="text-sm text-strongsales-700">
               <strong>Filters active:</strong>
               ${selectedFacility ? `Facility: ${allFacilities.find(f => f.id === selectedFacility)?.name || selectedFacility}` : ''}
-              ${selectedFacility && (selectedClassTypes.size < allClassTypes.length || selectedInstructor || (allTrainingCardTypes.length > 0 && selectedTrainingCardTypes.size < allTrainingCardTypes.length)) ? ' · ' : ''}
+              ${selectedFacility && (selectedClassTypes.size < allClassTypes.length || selectedInstructor) ? ' · ' : ''}
               ${selectedClassTypes.size < allClassTypes.length ? `${selectedClassTypes.size} of ${allClassTypes.length} class types` : ''}
-              ${selectedClassTypes.size < allClassTypes.length && (selectedInstructor || (allTrainingCardTypes.length > 0 && selectedTrainingCardTypes.size < allTrainingCardTypes.length)) ? ' · ' : ''}
-              ${(allTrainingCardTypes.length > 0 && selectedTrainingCardTypes.size < allTrainingCardTypes.length) ? `${selectedTrainingCardTypes.size} of ${allTrainingCardTypes.length} memberships` : ''}
-              ${(allTrainingCardTypes.length > 0 && selectedTrainingCardTypes.size < allTrainingCardTypes.length) && selectedInstructor ? ' · ' : ''}
+              ${selectedClassTypes.size < allClassTypes.length && selectedInstructor ? ' · ' : ''}
               ${selectedInstructor ? `Instructor: ${selectedInstructor}` : ''}
             </span>
-            <button onclick="selectAllClassTypes(); selectAllTrainingCardTypes(); clearInstructorFilter(); clearFacilityFilter();" class="ml-auto text-sm font-medium text-strongsales-600 hover:text-strongsales-800 flex-shrink-0">
+            <button onclick="selectAllClassTypes(); clearInstructorFilter(); clearFacilityFilter();" class="ml-auto text-sm font-medium text-strongsales-600 hover:text-strongsales-800 flex-shrink-0">
               Clear all filters
             </button>
           </div>
@@ -1667,19 +1447,11 @@
       renderCharts();
 
       // Restore dropdown open state after render
-      if (isClassFilterOpen || isTrainingCardFilterOpen) {
+      if (isClassFilterOpen) {
         requestAnimationFrame(() => {
-          if (isClassFilterOpen) {
-            const dropdown = document.getElementById('class-type-filter');
-            if (dropdown) {
-              dropdown.classList.add('open');
-            }
-          }
-          if (isTrainingCardFilterOpen) {
-            const tcDropdown = document.getElementById('training-card-filter');
-            if (tcDropdown) {
-              tcDropdown.classList.add('open');
-            }
+          const dropdown = document.getElementById('class-type-filter');
+          if (dropdown) {
+            dropdown.classList.add('open');
           }
         });
       }
