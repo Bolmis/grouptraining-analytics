@@ -614,7 +614,7 @@ app.get('/api/analytics/:clubId', isAuthenticated, async (req, res) => {
     // Fetch workout schedule, sites, training card types, and all training cards from Zoezi in parallel
     const workoutUrl = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
     const sitesUrl = `https://${club.Zoezi_Domain}/api/site/get/all`;
-    const trainingCardTypesUrl = `https://${club.Zoezi_Domain}/api/public/trainingcard/type/get`;
+    const trainingCardTypesUrl = `https://${club.Zoezi_Domain}/api/trainingcard/type/get/all`;
     const trainingCardsUrl = `https://${club.Zoezi_Domain}/api/trainingcard/get/all`;
 
     const [workouts, sites, trainingCardTypes, trainingCards] = await Promise.all([
@@ -852,7 +852,7 @@ app.get('/api/embed/analytics', async (req, res) => {
     // Fetch workout schedule, sites, training card types, and all training cards from Zoezi in parallel
     const workoutUrl = `https://${club.Zoezi_Domain}/api/schedule/workout/get/all?fromDate=${fromDate}&toDate=${toDate}&bookings=true`;
     const sitesUrl = `https://${club.Zoezi_Domain}/api/site/get/all`;
-    const trainingCardTypesUrl = `https://${club.Zoezi_Domain}/api/public/trainingcard/type/get`;
+    const trainingCardTypesUrl = `https://${club.Zoezi_Domain}/api/trainingcard/type/get/all`;
     const trainingCardsUrl = `https://${club.Zoezi_Domain}/api/trainingcard/get/all`;
 
     const [workouts, sites, trainingCardTypes, trainingCards] = await Promise.all([
